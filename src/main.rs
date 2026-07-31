@@ -37,7 +37,18 @@ impl std::fmt::Display for LoadCartridgeError {
     }
 }
 
-impl std::error::Error for LoadCartridgeError {}
+impl std::error::Error for LoadCartridgeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io { err } => Some(err),
+            Self::TruncatedHeader => None,
+            Self::RomSizeMismatch { .. } => None,
+            Self::InvalidCartridgeType { .. } => None,
+            Self::InvalidRomSize { .. } => None,
+            Self::InvalidRamSize { .. } => None,
+        }
+    }
+}
 
 impl From<std::io::Error> for LoadCartridgeError {
     fn from(err: std::io::Error) -> Self {
