@@ -1,27 +1,16 @@
 #[derive(Debug)]
 pub enum LoadCartridgeError {
-    Io {
-        err: std::io::Error,
-    },
+    Io { err: std::io::Error },
 
     TruncatedHeader,
 
-    RomSizeMismatch {
-        expected: usize,
-        actual: usize,
-    },
+    RomSizeMismatch { expected: usize, actual: usize },
 
-    InvalidCartridgeType {
-        id: u8,
-    },
+    InvalidCartridgeType { id: u8 },
 
-    InvalidRomSize {
-        id: u8,
-    },
+    InvalidRomSize { id: u8 },
 
-    InvalidRamSize {
-        id: u8,
-    },
+    InvalidRamSize { id: u8 },
 }
 
 impl std::fmt::Display for LoadCartridgeError {
@@ -29,7 +18,10 @@ impl std::fmt::Display for LoadCartridgeError {
         match self {
             Self::Io { err } => write!(f, "{err}"),
             Self::TruncatedHeader => write!(f, "header truncated"),
-            Self::RomSizeMismatch { expected, actual } => write!(f, "rom size mismatch: expected {expected}, got {actual} bytes"),
+            Self::RomSizeMismatch { expected, actual } => write!(
+                f,
+                "rom size mismatch: expected {expected}, got {actual} bytes"
+            ),
             Self::InvalidCartridgeType { id } => write!(f, "invalid cartridge type: {id:02x}"),
             Self::InvalidRomSize { id } => write!(f, "invalid rom size: {id:02x}"),
             Self::InvalidRamSize { id } => write!(f, "invalid ram size: {id:02x}"),
@@ -80,8 +72,7 @@ impl CartridgeMapper for PlainCartridgeMapper {
         *self.ram.get(address).unwrap_or(&0xff)
     }
 
-    fn write_rom(&mut self, _: usize, _: u8) {
-    }
+    fn write_rom(&mut self, _: usize, _: u8) {}
 
     fn write_ram(&mut self, address: usize, value: u8) {
         if let Some(b) = self.ram.get_mut(address) {
@@ -90,9 +81,11 @@ impl CartridgeMapper for PlainCartridgeMapper {
     }
 }
 
-pub fn load_cartridge<R: std::io::Read>(mut r: R) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError> {
+pub fn load_cartridge<R: std::io::Read>(
+    mut r: R,
+) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError> {
     const ROM_BANK_SIZE: usize = 16 * 1024; // 16 KiB
-    const RAM_BANK_SIZE: usize = 8 * 1024;  //  8 KiB
+    const RAM_BANK_SIZE: usize = 8 * 1024; //  8 KiB
 
     let mut rom = Vec::new();
 
@@ -112,7 +105,7 @@ pub fn load_cartridge<R: std::io::Read>(mut r: R) -> Result<Box<dyn CartridgeMap
         0x06 => 128,
         0x07 => 256,
         0x08 => 512,
-        id => return Err(LoadCartridgeError::InvalidRomSize { id })
+        id => return Err(LoadCartridgeError::InvalidRomSize { id }),
     };
 
     let ram_banks = match rom[0x149] {
@@ -121,7 +114,7 @@ pub fn load_cartridge<R: std::io::Read>(mut r: R) -> Result<Box<dyn CartridgeMap
         0x03 => 4,
         0x04 => 16,
         0x05 => 8,
-        id => return Err(LoadCartridgeError::InvalidRamSize { id })
+        id => return Err(LoadCartridgeError::InvalidRamSize { id }),
     };
 
     let rom_size = ROM_BANK_SIZE * rom_banks;
@@ -131,7 +124,7 @@ pub fn load_cartridge<R: std::io::Read>(mut r: R) -> Result<Box<dyn CartridgeMap
         return Err(LoadCartridgeError::RomSizeMismatch {
             expected: rom_size,
             actual: rom.len(),
-        })
+        });
     }
 
     let ram = vec![0x00; ram_size];
@@ -143,14 +136,15 @@ pub fn load_cartridge<R: std::io::Read>(mut r: R) -> Result<Box<dyn CartridgeMap
         }),
 
         // XXX handle other controllers
-
-        id => return Err(LoadCartridgeError::InvalidCartridgeType { id })
+        id => return Err(LoadCartridgeError::InvalidCartridgeType { id }),
     };
 
     Ok(mapper)
 }
 
-pub fn load_cartridge_path<P: AsRef<std::path::Path>>(path: P) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError> {
+pub fn load_cartridge_path<P: AsRef<std::path::Path>>(
+    path: P,
+) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError> {
     let f = std::fs::File::open(path)?;
 
     load_cartridge(f)
