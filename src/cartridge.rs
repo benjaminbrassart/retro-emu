@@ -135,7 +135,11 @@ pub fn load_cartridge<R: std::io::Read>(
             ram: ram.into_boxed_slice(),
         }),
 
-        // XXX handle other controllers
+        0x01..=0x03 => todo!("cartridge: mbc1"),
+        0x05 | 0x06 => todo!("cartridge: mbc2"),
+        0x0f..=0x13 => todo!("cartridge: mbc3"),
+        0x19..=0x1e => todo!("cartridge: mbc5"),
+
         id => return Err(LoadCartridgeError::InvalidCartridgeType { id }),
     };
 
