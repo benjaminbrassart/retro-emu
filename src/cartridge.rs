@@ -61,6 +61,7 @@ pub trait CartridgeMapper {
 pub struct PlainCartridgeMapper {
     pub rom: Box<[u8]>,
     pub ram: Box<[u8]>,
+    pub has_battery: bool,
 }
 
 impl CartridgeMapper for PlainCartridgeMapper {
@@ -130,9 +131,16 @@ pub fn load_cartridge<R: std::io::Read>(
     let ram = vec![0x00; ram_size];
 
     let mapper: Box<dyn CartridgeMapper> = match rom[0x147] {
-        0x00 => Box::new(PlainCartridgeMapper {
+        0x00 | 0x08 => Box::new(PlainCartridgeMapper {
             rom: rom.into_boxed_slice(),
             ram: ram.into_boxed_slice(),
+            has_battery: false,
+        }),
+
+        0x09 => Box::new(PlainCartridgeMapper {
+            rom: rom.into_boxed_slice(),
+            ram: ram.into_boxed_slice(),
+            has_battery: true,
         }),
 
         0x01..=0x03 => todo!("cartridge: mbc1"),
