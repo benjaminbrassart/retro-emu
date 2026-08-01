@@ -82,9 +82,10 @@ impl CartridgeMapper for PlainCartridgeMapper {
     }
 }
 
-pub fn load_cartridge<R: std::io::Read>(
-    mut r: R,
-) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError> {
+pub fn load_cartridge<R>(mut r: R) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError>
+where
+    R: std::io::Read,
+{
     const ROM_BANK_SIZE: usize = 16 * 1024; // 16 KiB
     const RAM_BANK_SIZE: usize = 8 * 1024; //  8 KiB
 
@@ -154,9 +155,10 @@ pub fn load_cartridge<R: std::io::Read>(
     Ok(mapper)
 }
 
-pub fn load_cartridge_path<P: AsRef<std::path::Path>>(
-    path: P,
-) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError> {
+pub fn load_cartridge_path<P>(path: P) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError>
+where
+    P: AsRef<std::path::Path>,
+{
     let f = std::fs::File::open(path)?;
 
     load_cartridge(f)
