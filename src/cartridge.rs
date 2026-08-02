@@ -49,13 +49,13 @@ impl From<std::io::Error> for LoadCartridgeError {
 }
 
 pub trait CartridgeMapper {
-    fn read_rom(&self, address: usize) -> u8;
+    fn read_rom(&self, address: u16) -> u8;
 
-    fn read_ram(&self, address: usize) -> u8;
+    fn read_ram(&self, address: u16) -> u8;
 
-    fn write_rom(&mut self, address: usize, value: u8);
+    fn write_rom(&mut self, address: u16, value: u8);
 
-    fn write_ram(&mut self, address: usize, value: u8);
+    fn write_ram(&mut self, address: u16, value: u8);
 }
 
 pub struct PlainCartridgeMapper {
@@ -65,18 +65,18 @@ pub struct PlainCartridgeMapper {
 }
 
 impl CartridgeMapper for PlainCartridgeMapper {
-    fn read_rom(&self, address: usize) -> u8 {
-        *self.rom.get(address).unwrap_or(&0xff)
+    fn read_rom(&self, address: u16) -> u8 {
+        *self.rom.get(address as usize).unwrap_or(&0xff)
     }
 
-    fn read_ram(&self, address: usize) -> u8 {
-        *self.ram.get(address).unwrap_or(&0xff)
+    fn read_ram(&self, address: u16) -> u8 {
+        *self.ram.get(address as usize).unwrap_or(&0xff)
     }
 
-    fn write_rom(&mut self, _: usize, _: u8) {}
+    fn write_rom(&mut self, _: u16, _: u8) {}
 
-    fn write_ram(&mut self, address: usize, value: u8) {
-        if let Some(b) = self.ram.get_mut(address) {
+    fn write_ram(&mut self, address: u16, value: u8) {
+        if let Some(b) = self.ram.get_mut(address as usize) {
             *b = value
         }
     }
