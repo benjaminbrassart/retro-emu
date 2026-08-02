@@ -91,6 +91,7 @@ where
 
     let mut rom = Vec::new();
 
+    // XXX does not work with devtmpfs pseudofiles (/dev/zero, etc.)
     _ = r.read_to_end(&mut rom)?;
 
     if rom.len() < 336 {
