@@ -351,6 +351,16 @@ impl Cpu {
             0x17 => Instruction::Rla,
             0x1f => Instruction::Rra,
 
+            0x03 => Instruction::Inc16 { reg: Reg16::BC },
+            0x13 => Instruction::Inc16 { reg: Reg16::DE },
+            0x23 => Instruction::Inc16 { reg: Reg16::HL },
+            0x33 => Instruction::Inc16 { reg: Reg16::SP },
+
+            0x0b => Instruction::Dec16 { reg: Reg16::BC },
+            0x1b => Instruction::Dec16 { reg: Reg16::DE },
+            0x2b => Instruction::Dec16 { reg: Reg16::HL },
+            0x3b => Instruction::Dec16 { reg: Reg16::SP },
+
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
     }
@@ -527,12 +537,21 @@ pub enum Instruction {
     Pop {
         dst: Reg16,
     },
-    Rst { vector: u8 },
+    Rst {
+        vector: u8,
+    },
 
     Rlca,
     Rrca,
     Rla,
     Rra,
+
+    Inc16 {
+        reg: Reg16,
+    },
+    Dec16 {
+        reg: Reg16,
+    },
 }
 
 impl std::fmt::Display for Instruction {
@@ -600,6 +619,9 @@ impl std::fmt::Display for Instruction {
             Self::Rrca => write!(f, "RRCA"),
             Self::Rla => write!(f, "RLA"),
             Self::Rra => write!(f, "RRA"),
+
+            Self::Inc16 { reg } => write!(f, "INC {reg}"),
+            Self::Dec16 { reg } => write!(f, "DEC {reg}"),
         }
     }
 }
