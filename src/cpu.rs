@@ -549,6 +549,19 @@ impl Cpu {
                 src: Src16::Imm16(self.fetch_next_word(bus)),
             },
 
+            0xf8 => Instruction::Load16 {
+                dst: Dst16::Reg16(Reg16::HL),
+                src: Src16::Reg16Offset {
+                    reg: Reg16::SP,
+                    offset: self.fetch_next_byte(bus) as i8,
+                },
+            },
+
+            0xf9 => Instruction::Load16 {
+                dst: Dst16::Reg16(Reg16::SP),
+                src: Src16::Reg16(Reg16::HL),
+            },
+
             0x04 | 0x0c | 0x14 | 0x1c | 0x24 | 0x2c | 0x34 | 0x3c => {
                 let reg = match opcode & 0b0000_0111 {
                     0b0000_0000 => Arith8::Reg8(Reg8::B),
@@ -590,6 +603,9 @@ impl Cpu {
             0x19 => Instruction::Add16 { src: Reg16::DE },
             0x29 => Instruction::Add16 { src: Reg16::HL },
             0x39 => Instruction::Add16 { src: Reg16::SP },
+            0xe8 => Instruction::AddSP {
+                offset: self.fetch_next_byte(bus) as i8,
+            },
 
             0x08 => Instruction::Load16 {
                 dst: Dst16::AtImm16(self.fetch_next_word(bus)),
@@ -973,6 +989,9 @@ pub enum Instruction {
     Add16 {
         src: Reg16,
     },
+    AddSP {
+        offset: i8,
+    },
 }
 
 impl std::fmt::Display for Instruction {
@@ -1076,6 +1095,7 @@ impl std::fmt::Display for Instruction {
             Self::Ccf => write!(f, "CCF"),
 
             Self::Add16 { src } => write!(f, "ADD {}, {src}", Reg16::HL),
+            Self::AddSP { offset } => write!(f, "ADD {}, {offset}", Reg16::SP),
         }
     }
 }
