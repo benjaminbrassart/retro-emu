@@ -330,6 +330,16 @@ impl Cpu {
 
             0xd9 => Instruction::Reti,
 
+            0xc1 => Instruction::Pop { dst: Reg16::BC },
+            0xd1 => Instruction::Pop { dst: Reg16::DE },
+            0xe1 => Instruction::Pop { dst: Reg16::HL },
+            0xf1 => Instruction::Pop { dst: Reg16::AF },
+
+            0xc5 => Instruction::Push { src: Reg16::BC },
+            0xd5 => Instruction::Push { src: Reg16::DE },
+            0xe5 => Instruction::Push { src: Reg16::HL },
+            0xf5 => Instruction::Push { src: Reg16::AF },
+
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
     }
@@ -500,6 +510,12 @@ pub enum Instruction {
         condition: Option<JumpCondition>,
     },
     Reti,
+    Push {
+        src: Reg16,
+    },
+    Pop {
+        dst: Reg16,
+    },
 }
 
 impl std::fmt::Display for Instruction {
@@ -556,6 +572,10 @@ impl std::fmt::Display for Instruction {
             } => write!(f, "RET {condition}"),
 
             Self::Reti => write!(f, "RETI"),
+
+            Self::Push { src } => write!(f, "PUSH {src}"),
+
+            Self::Pop { dst } => write!(f, "POP {dst}"),
         }
     }
 }
