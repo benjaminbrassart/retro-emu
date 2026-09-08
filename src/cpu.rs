@@ -232,6 +232,23 @@ impl Cpu {
                 Instruction::Load8 { src, dst }
             }
 
+            0xea | 0xfa => {
+                let address =
+                    u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]);
+
+                if opcode == 0xfa {
+                    Instruction::Load8 {
+                        dst: Dst8::AtImm16(address),
+                        src: Src8::Reg8(Reg8::A),
+                    }
+                } else {
+                    Instruction::Load8 {
+                        dst: Dst8::Reg8(Reg8::A),
+                        src: Src8::AtImm16(address),
+                    }
+                }
+            }
+
             0x18 => Instruction::JumpRelative {
                 offset: self.fetch_next_byte(bus) as i8,
                 condition: None,
