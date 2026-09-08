@@ -133,6 +133,17 @@ impl Cpu {
 
         match opcode {
             0x00 => Instruction::Nop,
+            0xd3 | 0xdb | 0xe3 | 0xe4 | 0xeb | 0xec | 0xed | 0xf4 | 0xfc | 0xfd => {
+                Instruction::Illegal { opcode }
+            }
+            0x10 => {
+                let code = self.fetch_next_byte(bus);
+
+                Instruction::Stop { code }
+            }
+            0x76 => Instruction::Halt,
+            0xf3 => Instruction::DisableInterrupts,
+            0xfb => Instruction::EnableInterrupts,
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
     }
@@ -141,12 +152,22 @@ impl Cpu {
 #[derive(Debug, PartialEq)]
 pub enum Instruction {
     Nop,
+    Illegal { opcode: u8 },
+    Stop { code: u8 },
+    Halt,
+    EnableInterrupts,
+    DisableInterrupts,
 }
 
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::Nop => write!(f, "NOP"),
+            Self::Illegal { opcode } => write!(f, "ILLEGAL_{opcode:02X}"),
+            Self::Stop { code } => write!(f, "STOP {code:#04x}"),
+            Self::Halt => write!(f, "HALT"),
+            Self::EnableInterrupts => write!(f, "EI"),
+            Self::DisableInterrupts => write!(f, "DI"),
         }
     }
 }
@@ -172,9 +193,7 @@ mod tests {
     #[test]
     fn decode_nop() {
         let mut cpu = Cpu::default();
-        let mut bus = TestBus {
-            data: vec![0x00],
-        };
+        let mut bus = TestBus { data: vec![0x00] };
 
         let instruction = cpu.fetch_next_instruction(&mut bus);
 
@@ -191,5 +210,19 @@ mod tests {
         assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
         assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
         assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
+    }
+
+    #[test]
+    fn decode_mixed() {
+        let mut cpu = Cpu::default();
+        let mut bus = TestBus {
+            data: vec![0x10, 0x00, 0xfb, 0x00, 0x10, 0x10, 0xf3 ],
+        };
+
+        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Stop { code: 0x00 });
+        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::EnableInterrupts);
+        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
+        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Stop { code: 0x10 });
+        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::DisableInterrupts);
     }
 }
