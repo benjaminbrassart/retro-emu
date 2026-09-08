@@ -340,6 +340,12 @@ impl Cpu {
             0xe5 => Instruction::Push { src: Reg16::HL },
             0xf5 => Instruction::Push { src: Reg16::AF },
 
+            0xc7 | 0xcf | 0xd7 | 0xdf | 0xe7 | 0xef | 0xf7 | 0xff => {
+                let vector = (opcode & 0b0011_1000) >> 3;
+
+                Instruction::Rst { vector }
+            }
+
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
     }
@@ -516,6 +522,7 @@ pub enum Instruction {
     Pop {
         dst: Reg16,
     },
+    Rst { vector: u8, }
 }
 
 impl std::fmt::Display for Instruction {
@@ -576,6 +583,8 @@ impl std::fmt::Display for Instruction {
             Self::Push { src } => write!(f, "PUSH {src}"),
 
             Self::Pop { dst } => write!(f, "POP {dst}"),
+
+            Self::Rst { vector } => write!(f, "RST ${vector:02x}")
         }
     }
 }
