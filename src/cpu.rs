@@ -590,6 +590,11 @@ impl Cpu {
             0x19 => Instruction::Add16 { src: Reg16::DE },
             0x29 => Instruction::Add16 { src: Reg16::HL },
             0x39 => Instruction::Add16 { src: Reg16::SP },
+
+            0x08 => Instruction::Load16 {
+                dst: Dst16::AtImm16(self.fetch_next_word(bus)),
+                src: Src16::Reg16(Reg16::SP),
+            },
             0xcb => self.fetch_next_prefixed_instruction(bus),
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
