@@ -483,6 +483,44 @@ impl std::fmt::Display for Dst8 {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum Dst16 {
+    Reg16(Reg16),
+    AtImm16(u16),
+}
+
+impl std::fmt::Display for Dst16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::Reg16(reg) => write!(f, "{reg}"),
+            Self::AtImm16(addr) => write!(f, "{addr:#06x}"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Src16 {
+    Reg16(Reg16),
+    Imm16(u16),
+    Reg16Offset { reg: Reg16, offset: i8 },
+}
+
+impl std::fmt::Display for Src16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::Reg16(reg) => write!(f, "{reg}"),
+            Self::Imm16(w) => write!(f, "{w:#06x}"),
+            Self::Reg16Offset { reg, offset } => {
+                let sign = if *offset < 0 { '-' } else { '+' };
+
+                let offset = offset.unsigned_abs();
+
+                write!(f, "{reg} {sign} {offset}")
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum JumpCondition {
     NZ,
     Z,
@@ -569,6 +607,11 @@ pub enum Instruction {
     Dec16 {
         reg: Reg16,
     },
+    Load16 {
+        dst: Dst16,
+        src: Src16,
+    },
+
 }
 
 impl std::fmt::Display for Instruction {
@@ -639,6 +682,8 @@ impl std::fmt::Display for Instruction {
 
             Self::Inc16 { reg } => write!(f, "INC {reg}"),
             Self::Dec16 { reg } => write!(f, "DEC {reg}"),
+            Self::Load16 { dst, src } => write!(f, "LD {dst}, {src}"),
+
         }
     }
 }
