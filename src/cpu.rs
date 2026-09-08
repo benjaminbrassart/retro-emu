@@ -421,6 +421,11 @@ impl Cpu {
                 Instruction::Dec8 { reg }
             }
 
+            0x27 => Instruction::Daa,
+            0x2f => Instruction::Cpl,
+            0x37 => Instruction::Scf,
+            0x3f => Instruction::Ccf,
+
             0xcb => self.fetch_next_prefixed_instruction(bus),
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
@@ -792,6 +797,11 @@ pub enum Instruction {
     Dec8 {
         reg: Arith8,
     },
+
+    Daa,
+    Cpl,
+    Scf,
+    Ccf,
 }
 
 impl std::fmt::Display for Instruction {
@@ -888,6 +898,11 @@ impl std::fmt::Display for Instruction {
 
             Self::Inc8 { reg } => write!(f, "INC {reg}"),
             Self::Dec8 { reg } => write!(f, "DEC {reg}"),
+
+            Self::Daa => write!(f, "DAA"),
+            Self::Cpl => write!(f, "CPL"),
+            Self::Scf => write!(f, "SCF"),
+            Self::Ccf => write!(f, "CCF"),
         }
     }
 }
