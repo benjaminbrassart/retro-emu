@@ -125,6 +125,13 @@ impl Cpu {
         b
     }
 
+    pub fn fetch_next_word<B>(&mut self, bus: &B) -> u16
+    where
+        B: Bus,
+    {
+        u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)])
+    }
+
     pub fn fetch_next_instruction<B>(&mut self, bus: &B) -> Instruction
     where
         B: Bus,
@@ -233,8 +240,7 @@ impl Cpu {
             }
 
             0xea | 0xfa => {
-                let address =
-                    u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]);
+                let address = self.fetch_next_word(bus);
 
                 if opcode == 0xfa {
                     Instruction::Load8 {
@@ -285,38 +291,23 @@ impl Cpu {
             },
 
             0xc3 => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
-                    self.fetch_next_byte(bus),
-                    self.fetch_next_byte(bus),
-                ])),
+                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
                 condition: None,
             },
             0xc2 => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
-                    self.fetch_next_byte(bus),
-                    self.fetch_next_byte(bus),
-                ])),
+                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
                 condition: Some(JumpCondition::NZ),
             },
             0xca => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
-                    self.fetch_next_byte(bus),
-                    self.fetch_next_byte(bus),
-                ])),
+                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
                 condition: Some(JumpCondition::Z),
             },
             0xd2 => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
-                    self.fetch_next_byte(bus),
-                    self.fetch_next_byte(bus),
-                ])),
+                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
                 condition: Some(JumpCondition::NC),
             },
             0xda => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
-                    self.fetch_next_byte(bus),
-                    self.fetch_next_byte(bus),
-                ])),
+                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
                 condition: Some(JumpCondition::C),
             },
             0xe9 => Instruction::JumpAbsolute {
@@ -325,23 +316,23 @@ impl Cpu {
             },
 
             0xcd => Instruction::Call {
-                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                address: self.fetch_next_word(bus),
                 condition: None,
             },
             0xc4 => Instruction::Call {
-                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                address: self.fetch_next_word(bus),
                 condition: Some(JumpCondition::NZ),
             },
             0xcc => Instruction::Call {
-                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                address: self.fetch_next_word(bus),
                 condition: Some(JumpCondition::Z),
             },
             0xd4 => Instruction::Call {
-                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                address: self.fetch_next_word(bus),
                 condition: Some(JumpCondition::NC),
             },
             0xdc => Instruction::Call {
-                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                address: self.fetch_next_word(bus),
                 condition: Some(JumpCondition::C),
             },
 
@@ -378,7 +369,25 @@ impl Cpu {
             0x2b => Instruction::Dec16 { reg: Reg16::HL },
             0x3b => Instruction::Dec16 { reg: Reg16::SP },
 
-            0xcb => self.fetch_next_prefixed_instruction(bus),
+            0x01 => Instruction::Load16 {
+                dst: Dst16::Reg16(Reg16::BC),
+                src: Src16::Imm16(self.fetch_next_word(bus)),
+            },
+
+            0x11 => Instruction::Load16 {
+                dst: Dst16::Reg16(Reg16::DE),
+                src: Src16::Imm16(self.fetch_next_word(bus)),
+            },
+
+            0x21 => Instruction::Load16 {
+                dst: Dst16::Reg16(Reg16::HL),
+                src: Src16::Imm16(self.fetch_next_word(bus)),
+            },
+
+            0x31 => Instruction::Load16 {
+                dst: Dst16::Reg16(Reg16::SP),
+                src: Src16::Imm16(self.fetch_next_word(bus)),
+            },
 
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
