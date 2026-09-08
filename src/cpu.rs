@@ -255,6 +255,166 @@ impl Cpu {
                 }
             }
 
+            0xc6 => Instruction::Add {
+                src: Arith8::Imm8(self.fetch_next_byte(bus)),
+            },
+
+            0x80..=0x87 => {
+                let src = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Add { src }
+            }
+
+            0xce => Instruction::Adc {
+                src: Arith8::Imm8(self.fetch_next_byte(bus)),
+            },
+
+            0x88..=0x8f => {
+                let src = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Adc { src }
+            }
+
+            0xd6 => Instruction::Sub {
+                src: Arith8::Imm8(self.fetch_next_byte(bus)),
+            },
+
+            0x90..=0x97 => {
+                let src = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Sub { src }
+            }
+
+            0xde => Instruction::Sbc {
+                src: Arith8::Imm8(self.fetch_next_byte(bus)),
+            },
+
+            0x98..=0x9f => {
+                let src = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Sbc { src }
+            }
+
+            0xe6 => Instruction::And {
+                src: Arith8::Imm8(self.fetch_next_byte(bus)),
+            },
+
+            0xa0..=0xa7 => {
+                let src = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::And { src }
+            }
+
+            0xee => Instruction::Xor {
+                src: Arith8::Imm8(self.fetch_next_byte(bus)),
+            },
+
+            0xa8..=0xaf => {
+                let src = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Xor { src }
+            }
+
+            0xf6 => Instruction::Or {
+                src: Arith8::Imm8(self.fetch_next_byte(bus)),
+            },
+
+            0xb0..=0xb7 => {
+                let src = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Or { src }
+            }
+
+            0xfe => Instruction::Cp {
+                src: Arith8::Imm8(self.fetch_next_byte(bus)),
+            },
+
+            0xb8..=0xbf => {
+                let src = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Cp { src }
+            }
+
             0x18 => Instruction::JumpRelative {
                 offset: self.fetch_next_byte(bus) as i8,
                 condition: None,
