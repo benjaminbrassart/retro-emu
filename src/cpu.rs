@@ -483,6 +483,23 @@ impl std::fmt::Display for Dst8 {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum Arith8 {
+    Reg8(Reg8),
+    AtHL,
+    Imm8(u8),
+}
+
+impl std::fmt::Display for Arith8 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::Reg8(reg) => write!(f, "{reg}"),
+            Self::AtHL => write!(f, "[{}]", Reg16::HL),
+            Self::Imm8(b) => write!(f, "{b:#04x}"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Dst16 {
     Reg16(Reg16),
     AtImm16(u16),
@@ -607,11 +624,43 @@ pub enum Instruction {
     Dec16 {
         reg: Reg16,
     },
+
     Load16 {
         dst: Dst16,
         src: Src16,
     },
 
+    Add {
+        src: Arith8,
+    },
+
+    Adc {
+        src: Arith8,
+    },
+
+    Sub {
+        src: Arith8,
+    },
+
+    Sbc {
+        src: Arith8,
+    },
+
+    And {
+        src: Arith8,
+    },
+
+    Xor {
+        src: Arith8,
+    },
+
+    Or {
+        src: Arith8,
+    },
+
+    Cp {
+        src: Arith8,
+    },
 }
 
 impl std::fmt::Display for Instruction {
@@ -682,8 +731,17 @@ impl std::fmt::Display for Instruction {
 
             Self::Inc16 { reg } => write!(f, "INC {reg}"),
             Self::Dec16 { reg } => write!(f, "DEC {reg}"),
+
             Self::Load16 { dst, src } => write!(f, "LD {dst}, {src}"),
 
+            Self::Add { src } => write!(f, "ADD {}, {src}", Reg8::A),
+            Self::Adc { src } => write!(f, "ADC {}, {src}", Reg8::A),
+            Self::Sub { src } => write!(f, "SUB {}, {src}", Reg8::A),
+            Self::Sbc { src } => write!(f, "SBC {}, {src}", Reg8::A),
+            Self::And { src } => write!(f, "AND {}, {src}", Reg8::A),
+            Self::Xor { src } => write!(f, "XOR {}, {src}", Reg8::A),
+            Self::Or { src } => write!(f, "OR {}, {src}", Reg8::A),
+            Self::Cp { src } => write!(f, "CP {}, {src}", Reg8::A),
         }
     }
 }
