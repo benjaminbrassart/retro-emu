@@ -675,7 +675,7 @@ impl Cpu {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Reg8 {
     A,
     B,
@@ -700,7 +700,7 @@ impl std::fmt::Display for Reg8 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Reg16 {
     AF,
     BC,
@@ -721,7 +721,7 @@ impl std::fmt::Display for Reg16 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Src8 {
     Reg8(Reg8),
     Imm8(u8),
@@ -744,7 +744,7 @@ impl std::fmt::Display for Src8 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Dst8 {
     Reg8(Reg8),
     AtReg16(Reg16),
@@ -765,7 +765,7 @@ impl std::fmt::Display for Dst8 {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum OperandHigh {
     A,
     AtC,
@@ -782,7 +782,7 @@ impl std::fmt::Display for OperandHigh {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Arith8 {
     Reg8(Reg8),
     AtHL,
