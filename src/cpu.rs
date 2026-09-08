@@ -586,6 +586,10 @@ impl Cpu {
             0x37 => Instruction::Scf,
             0x3f => Instruction::Ccf,
 
+            0x09 => Instruction::Add16 { src: Reg16::BC },
+            0x19 => Instruction::Add16 { src: Reg16::DE },
+            0x29 => Instruction::Add16 { src: Reg16::HL },
+            0x39 => Instruction::Add16 { src: Reg16::SP },
             0xcb => self.fetch_next_prefixed_instruction(bus),
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
@@ -960,6 +964,10 @@ pub enum Instruction {
     Cpl,
     Scf,
     Ccf,
+
+    Add16 {
+        src: Reg16,
+    },
 }
 
 impl std::fmt::Display for Instruction {
@@ -1061,6 +1069,8 @@ impl std::fmt::Display for Instruction {
             Self::Cpl => write!(f, "CPL"),
             Self::Scf => write!(f, "SCF"),
             Self::Ccf => write!(f, "CCF"),
+
+            Self::Add16 { src } => write!(f, "ADD {}, {src}", Reg16::HL),
         }
     }
 }
