@@ -1,3 +1,5 @@
+use crate::bus::Bus;
+
 pub struct CpuFlags {
     pub zero: bool,
     pub sub: bool,
@@ -110,5 +112,84 @@ impl Cpu {
         f(&mut flags);
 
         self.set_flags(flags);
+    }
+
+    pub fn fetch_next_byte<B>(&mut self, bus: &B) -> u8
+    where
+        B: Bus,
+    {
+        let b = bus.read_byte(self.pc);
+
+        self.pc = self.pc.wrapping_add(1);
+
+        b
+    }
+
+    pub fn fetch_next_instruction<B>(&mut self, bus: &B) -> Instruction
+    where
+        B: Bus,
+    {
+        let opcode = self.fetch_next_byte(bus);
+
+        match opcode {
+            0x00 => Instruction::Nop,
+            _ => todo!("unhandled instruction: {opcode:#04x}"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Instruction {
+    Nop,
+}
+
+impl std::fmt::Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::Nop => write!(f, "NOP"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestBus {
+        data: Vec<u8>,
+    }
+
+    impl Bus for TestBus {
+        fn read_byte(&self, address: u16) -> u8 {
+            self.data[address as usize]
+        }
+
+        fn write_byte(&mut self, address: u16, value: u8) {
+            self.data[address as usize] = value
+        }
+    }
+
+    #[test]
+    fn decode_nop() {
+        let mut cpu = Cpu::default();
+        let mut bus = TestBus {
+            data: vec![0x00],
+        };
+
+        let instruction = cpu.fetch_next_instruction(&mut bus);
+
+        assert_eq!(instruction, Instruction::Nop);
+    }
+
+    #[test]
+    fn decode_nop_multiple() {
+        let mut cpu = Cpu::default();
+        let mut bus = TestBus {
+            data: vec![0x00, 0x00, 0x00],
+        };
+
+        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
+        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
+        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
     }
 }
