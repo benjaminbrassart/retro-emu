@@ -475,7 +475,6 @@ impl Cpu {
 #[derive(Debug, PartialEq)]
 pub enum Reg8 {
     A,
-    F,
     B,
     C,
     D,
@@ -488,7 +487,6 @@ impl std::fmt::Display for Reg8 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::A => write!(f, "A"),
-            Self::F => write!(f, "F"),
             Self::B => write!(f, "B"),
             Self::C => write!(f, "C"),
             Self::D => write!(f, "D"),
