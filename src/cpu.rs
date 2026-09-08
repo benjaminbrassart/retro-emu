@@ -389,6 +389,7 @@ impl Cpu {
                 src: Src16::Imm16(self.fetch_next_word(bus)),
             },
 
+            0xcb => self.fetch_next_prefixed_instruction(bus),
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
     }
