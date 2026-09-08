@@ -438,7 +438,7 @@ mod tests {
                 0x7f, // LD A, A
                 0x7f, // LD A, A
                 0x3e, 0x42, // LD A, 0x42
-                0x22, // LD [DE], A
+                0x22, // LD [HL+], A
             ],
         };
 
@@ -469,7 +469,7 @@ mod tests {
         assert_eq!(
             cpu.fetch_next_instruction(&mut bus),
             Instruction::Load8 {
-                dst: Dst8::AtReg16(Reg16::DE),
+                dst: Dst8::AtHLI,
                 src: Src8::Reg8(Reg8::A),
             },
         );
