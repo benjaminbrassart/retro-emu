@@ -1145,120 +1145,374 @@ impl std::fmt::Display for Instruction {
 mod tests {
     use super::*;
 
-    struct TestBus {
-        data: Vec<u8>,
-    }
+    struct TestBus(Vec<u8>);
 
     impl Bus for TestBus {
         fn read_byte(&self, address: u16) -> u8 {
-            self.data[address as usize]
+            self.0[address as usize]
         }
 
         fn write_byte(&mut self, address: u16, value: u8) {
-            self.data[address as usize] = value
+            self.0[address as usize] = value
         }
+    }
+
+    fn assert_decode(input: Vec<u8>, want: Instruction, pc: u16) {
+        let mut cpu = Cpu::default();
+        let bus = TestBus(input);
+
+        let have = cpu.fetch_next_instruction(&bus);
+
+        assert_eq!(have, want);
+        assert_eq!(cpu.pc, pc, "pc register");
     }
 
     #[test]
     fn decode_nop() {
-        let mut cpu = Cpu::default();
-        let mut bus = TestBus { data: vec![0x00] };
-
-        let instruction = cpu.fetch_next_instruction(&mut bus);
-
-        assert_eq!(instruction, Instruction::Nop);
+        assert_decode(vec![0x00], Instruction::Nop, 1);
     }
 
     #[test]
-    fn decode_nop_multiple() {
-        let mut cpu = Cpu::default();
-        let mut bus = TestBus {
-            data: vec![
-                0x00, // NOP
-                0x00, // NOP
-                0x00, // NOP
-            ],
-        };
+    fn decode_illegal() {
+        // https://gbdev.io/pandocs/CPU_Instruction_Set.html#block-3
 
-        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
-        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
-        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
+        let opcodes = [
+            0xd3, 0xdb, 0xdd, 0xe3, 0xe4, 0xeb, 0xec, 0xed, 0xf4, 0xfc, 0xfd,
+        ];
+
+        for opcode in opcodes {
+            assert_decode(vec![opcode], Instruction::Illegal { opcode }, 1);
+        }
     }
 
     #[test]
-    fn decode_mixed() {
-        let mut cpu = Cpu::default();
-        let mut bus = TestBus {
-            data: vec![
-                0x10, 0x00, // STOP 0x00
-                0xfb, // EI
-                0x00, // NOP
-                0x10, 0x10, // STOP 0x10
-                0xf3, // DI
-            ],
-        };
-
-        assert_eq!(
-            cpu.fetch_next_instruction(&mut bus),
-            Instruction::Stop { code: 0x00 }
-        );
-        assert_eq!(
-            cpu.fetch_next_instruction(&mut bus),
-            Instruction::EnableInterrupts
-        );
-        assert_eq!(cpu.fetch_next_instruction(&mut bus), Instruction::Nop);
-        assert_eq!(
-            cpu.fetch_next_instruction(&mut bus),
-            Instruction::Stop { code: 0x10 }
-        );
-        assert_eq!(
-            cpu.fetch_next_instruction(&mut bus),
-            Instruction::DisableInterrupts
-        );
+    fn decode_halt() {
+        assert_decode(vec![0x76], Instruction::Halt, 1);
     }
 
     #[test]
-    fn decode_ld8() {
-        let mut cpu = Cpu::default();
-        let mut bus = TestBus {
-            data: vec![
-                0x7f, // LD A, A
-                0x7f, // LD A, A
-                0x3e, 0x42, // LD A, 0x42
-                0x22, // LD [HL+], A
-            ],
-        };
+    fn decode_stop() {
+        assert_decode(vec![0x10, 0x42], Instruction::Stop { code: 0x42 }, 2);
+    }
 
-        assert_eq!(
-            cpu.fetch_next_instruction(&mut bus),
-            Instruction::Load8 {
-                dst: Dst8::Reg8(Reg8::A),
-                src: Src8::Reg8(Reg8::A),
-            },
-        );
+    #[test]
+    fn decode_ld_r16_n16() {
+        let inputs = [
+            (0x01, Reg16::BC),
+            (0x11, Reg16::DE),
+            (0x21, Reg16::HL),
+            (0x31, Reg16::SP),
+        ];
 
-        assert_eq!(
-            cpu.fetch_next_instruction(&mut bus),
-            Instruction::Load8 {
-                dst: Dst8::Reg8(Reg8::A),
-                src: Src8::Reg8(Reg8::A),
-            },
-        );
+        for (opcode, reg) in inputs {
+            assert_decode(
+                vec![opcode, 0xab, 0xcd],
+                Instruction::Load16 {
+                    dst: Dst16::Reg16(reg),
+                    src: Src16::Imm16(0xcdab),
+                },
+                3,
+            );
+        }
+    }
 
-        assert_eq!(
-            cpu.fetch_next_instruction(&mut bus),
-            Instruction::Load8 {
-                dst: Dst8::Reg8(Reg8::A),
-                src: Src8::Imm8(0x42),
-            },
-        );
+    #[test]
+    fn decode_rot_a() {
+        assert_decode(vec![0x07], Instruction::Rlca, 1);
+        assert_decode(vec![0x0f], Instruction::Rrca, 1);
+        assert_decode(vec![0x17], Instruction::Rla, 1);
+        assert_decode(vec![0x1f], Instruction::Rra, 1);
+    }
 
-        assert_eq!(
-            cpu.fetch_next_instruction(&mut bus),
-            Instruction::Load8 {
-                dst: Dst8::AtHLI,
-                src: Src8::Reg8(Reg8::A),
-            },
-        );
+    #[test]
+    fn decode_ei_di() {
+        assert_decode(vec![0xf3], Instruction::DisableInterrupts, 1);
+        assert_decode(vec![0xfb], Instruction::EnableInterrupts, 1);
+    }
+
+    #[test]
+    fn decode_misc() {
+        assert_decode(vec![0x27], Instruction::Daa, 1);
+        assert_decode(vec![0x2f], Instruction::Cpl, 1);
+        assert_decode(vec![0x37], Instruction::Scf, 1);
+        assert_decode(vec![0x3f], Instruction::Ccf, 1);
+    }
+
+    #[test]
+    fn decode_ret() {
+        assert_decode(vec![0xc9], Instruction::Ret { condition: None }, 1);
+    }
+
+    #[test]
+    fn decode_ret_cond() {
+        let inputs = [
+            (0xc0, JumpCondition::NZ),
+            (0xc8, JumpCondition::Z),
+            (0xd0, JumpCondition::NC),
+            (0xd8, JumpCondition::C),
+        ];
+
+        for (opcode, condition) in inputs {
+            assert_decode(
+                vec![opcode],
+                Instruction::Ret {
+                    condition: Some(condition),
+                },
+                1,
+            );
+        }
+    }
+
+    #[test]
+    fn decode_reti() {
+        assert_decode(vec![0xd9], Instruction::Reti, 1);
+    }
+
+    #[test]
+    fn decode_push() {
+        let inputs = [
+            (0xc5, Reg16::BC),
+            (0xd5, Reg16::DE),
+            (0xe5, Reg16::HL),
+            (0xf5, Reg16::AF),
+        ];
+
+        for (opcode, src) in inputs {
+            assert_decode(vec![opcode], Instruction::Push { src }, 1);
+        }
+    }
+
+    #[test]
+    fn decode_pop() {
+        let inputs = [
+            (0xc1, Reg16::BC),
+            (0xd1, Reg16::DE),
+            (0xe1, Reg16::HL),
+            (0xf1, Reg16::AF),
+        ];
+
+        for (opcode, dst) in inputs {
+            assert_decode(vec![opcode], Instruction::Pop { dst }, 1);
+        }
+    }
+
+    #[test]
+    fn decode_rlc() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            assert_decode(vec![0xcb, i as u8], Instruction::Rlc { src: reg }, 2);
+        }
+    }
+
+    #[test]
+    fn decode_rrc() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            assert_decode(vec![0xcb, i as u8 | 0x08], Instruction::Rrc { src: reg }, 2);
+        }
+    }
+
+    #[test]
+    fn decode_rl() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            assert_decode(vec![0xcb, i as u8 | 0x10], Instruction::Rl { src: reg }, 2);
+        }
+    }
+
+    #[test]
+    fn decode_rr() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            assert_decode(vec![0xcb, i as u8 | 0x18], Instruction::Rr { src: reg }, 2);
+        }
+    }
+
+    #[test]
+    fn decode_sla() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            assert_decode(vec![0xcb, i as u8 | 0x20], Instruction::Sla { src: reg }, 2);
+        }
+    }
+
+    #[test]
+    fn decode_sra() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            assert_decode(vec![0xcb, i as u8 | 0x28], Instruction::Sra { src: reg }, 2);
+        }
+    }
+
+    #[test]
+    fn decode_swap() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            assert_decode(
+                vec![0xcb, i as u8 | 0x30],
+                Instruction::Swap { src: reg },
+                2,
+            );
+        }
+    }
+
+    #[test]
+    fn decode_srl() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            assert_decode(vec![0xcb, i as u8 | 0x38], Instruction::Srl { src: reg }, 2);
+        }
+    }
+
+    #[test]
+    fn decode_bit() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            for bit in 0..8 {
+                assert_decode(
+                    vec![0xcb, i as u8 | 0x40 | bit << 3],
+                    Instruction::Bit { bit, src: reg },
+                    2,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn decode_res() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            for bit in 0..8 {
+                assert_decode(
+                    vec![0xcb, i as u8 | 0x80 | bit << 3],
+                    Instruction::Res { bit, src: reg },
+                    2,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn decode_set() {
+        let regs = [
+            Arith8::Reg8(Reg8::B),
+            Arith8::Reg8(Reg8::C),
+            Arith8::Reg8(Reg8::D),
+            Arith8::Reg8(Reg8::E),
+            Arith8::Reg8(Reg8::H),
+            Arith8::Reg8(Reg8::L),
+            Arith8::AtHL,
+            Arith8::Reg8(Reg8::A),
+        ];
+
+        for (i, &reg) in regs.iter().enumerate() {
+            for bit in 0..8 {
+                assert_decode(
+                    vec![0xcb, i as u8 | 0xc0 | bit << 3],
+                    Instruction::Set { bit, src: reg },
+                    2,
+                );
+            }
+        }
     }
 }
