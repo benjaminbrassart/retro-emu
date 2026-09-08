@@ -330,26 +330,101 @@ impl std::fmt::Display for Dst8 {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum JumpCondition {
+    NZ,
+    Z,
+    NC,
+    C,
+}
+
+impl std::fmt::Display for JumpCondition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::NZ => write!(f, "NZ"),
+            Self::Z => write!(f, "Z"),
+            Self::NC => write!(f, "NC"),
+            Self::C => write!(f, "C"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AbsoluteJumpTarget {
+    Imm16(u16),
+    HL,
+}
+
+impl std::fmt::Display for AbsoluteJumpTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::Imm16(addr) => write!(f, "{addr:#06x}"),
+            Self::HL => write!(f, "{}", Reg16::HL),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Instruction {
     Nop,
-    Illegal { opcode: u8 },
-    Stop { code: u8 },
+    Illegal {
+        opcode: u8,
+    },
+    Stop {
+        code: u8,
+    },
     Halt,
     EnableInterrupts,
     DisableInterrupts,
-    Load8 { dst: Dst8, src: Src8 },
+    Load8 {
+        dst: Dst8,
+        src: Src8,
+    },
+    JumpRelative {
+        offset: i8,
+        condition: Option<JumpCondition>,
+    },
+    JumpAbsolute {
+        target: AbsoluteJumpTarget,
+        condition: Option<JumpCondition>,
+    },
 }
 
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::Nop => write!(f, "NOP"),
+
             Self::Illegal { opcode } => write!(f, "ILLEGAL_{opcode:02X}"),
+
             Self::Stop { code } => write!(f, "STOP {code:#04x}"),
+
             Self::Halt => write!(f, "HALT"),
+
             Self::EnableInterrupts => write!(f, "EI"),
+
             Self::DisableInterrupts => write!(f, "DI"),
+
             Self::Load8 { dst, src } => write!(f, "LD {dst}, {src}"),
+
+            Self::JumpRelative {
+                offset,
+                condition: None,
+            } => write!(f, "JR {offset}"),
+
+            Self::JumpRelative {
+                offset,
+                condition: Some(condition),
+            } => write!(f, "JR {condition}, {offset}"),
+
+            Self::JumpAbsolute {
+                target,
+                condition: None,
+            } => write!(f, "JP {target}"),
+
+            Self::JumpAbsolute {
+                target,
+                condition: Some(condition),
+            } => write!(f, "JP {condition}, {target}"),
         }
     }
 }
