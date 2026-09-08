@@ -389,6 +389,38 @@ impl Cpu {
                 src: Src16::Imm16(self.fetch_next_word(bus)),
             },
 
+            0x04 | 0x0c | 0x14 | 0x1c | 0x24 | 0x2c | 0x34 | 0x3c => {
+                let reg = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Inc8 { reg }
+            }
+
+            0x05 | 0x0d | 0x15 | 0x1d | 0x25 | 0x2d | 0x35 | 0x3d => {
+                let reg = match opcode & 0b0000_0111 {
+                    0b0000_0000 => Arith8::Reg8(Reg8::B),
+                    0b0000_0001 => Arith8::Reg8(Reg8::C),
+                    0b0000_0010 => Arith8::Reg8(Reg8::D),
+                    0b0000_0011 => Arith8::Reg8(Reg8::E),
+                    0b0000_0100 => Arith8::Reg8(Reg8::H),
+                    0b0000_0101 => Arith8::Reg8(Reg8::L),
+                    0b0000_0110 => Arith8::AtHL,
+                    0b0000_0111 => Arith8::Reg8(Reg8::A),
+                    _ => unreachable!(),
+                };
+
+                Instruction::Dec8 { reg }
+            }
+
             0xcb => self.fetch_next_prefixed_instruction(bus),
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
@@ -753,6 +785,13 @@ pub enum Instruction {
         bit: u8,
         src: Arith8,
     },
+
+    Inc8 {
+        reg: Arith8,
+    },
+    Dec8 {
+        reg: Arith8,
+    },
 }
 
 impl std::fmt::Display for Instruction {
@@ -846,6 +885,9 @@ impl std::fmt::Display for Instruction {
             Self::Bit { bit, src } => write!(f, "BIT {bit}, {src}"),
             Self::Res { bit, src } => write!(f, "RES {bit}, {src}"),
             Self::Set { bit, src } => write!(f, "SET {bit}, {src}"),
+
+            Self::Inc8 { reg } => write!(f, "INC {reg}"),
+            Self::Dec8 { reg } => write!(f, "DEC {reg}"),
         }
     }
 }
