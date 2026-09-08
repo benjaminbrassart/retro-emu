@@ -611,8 +611,26 @@ impl Cpu {
                 dst: Dst16::AtImm16(self.fetch_next_word(bus)),
                 src: Src16::Reg16(Reg16::SP),
             },
+
+            0xe0 => Instruction::LoadHigh {
+                dst: OperandHigh::AtImm8(self.fetch_next_byte(bus)),
+                src: OperandHigh::A,
+            },
+            0xf0 => Instruction::LoadHigh {
+                dst: OperandHigh::A,
+                src: OperandHigh::AtImm8(self.fetch_next_byte(bus)),
+            },
+
+            0xe2 => Instruction::LoadHigh {
+                dst: OperandHigh::AtC,
+                src: OperandHigh::A,
+            },
+            0xf2 => Instruction::LoadHigh {
+                dst: OperandHigh::A,
+                src: OperandHigh::AtC,
+            },
+
             0xcb => self.fetch_next_prefixed_instruction(bus),
-            _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
     }
 
@@ -748,6 +766,23 @@ impl std::fmt::Display for Dst8 {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum OperandHigh {
+    A,
+    AtC,
+    AtImm8(u8),
+}
+
+impl std::fmt::Display for OperandHigh {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::A => write!(f, "A"),
+            Self::AtC => write!(f, "[{}]", Reg8::C),
+            Self::AtImm8(b) => write!(f, "[{b:#04x}]"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Arith8 {
     Reg8(Reg8),
     AtHL,
@@ -851,6 +886,10 @@ pub enum Instruction {
     Load8 {
         dst: Dst8,
         src: Src8,
+    },
+    LoadHigh {
+        dst: OperandHigh,
+        src: OperandHigh,
     },
     JumpRelative {
         offset: i8,
@@ -1010,6 +1049,8 @@ impl std::fmt::Display for Instruction {
             Self::DisableInterrupts => write!(f, "DI"),
 
             Self::Load8 { dst, src } => write!(f, "LD {dst}, {src}"),
+
+            Self::LoadHigh { dst, src } => write!(f, "LDH {dst}, {src}"),
 
             Self::JumpRelative {
                 offset,
