@@ -346,6 +346,11 @@ impl Cpu {
                 Instruction::Rst { vector }
             }
 
+            0x07 => Instruction::Rlca,
+            0x0f => Instruction::Rrca,
+            0x17 => Instruction::Rla,
+            0x1f => Instruction::Rra,
+
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
     }
@@ -522,7 +527,12 @@ pub enum Instruction {
     Pop {
         dst: Reg16,
     },
-    Rst { vector: u8, }
+    Rst { vector: u8 },
+
+    Rlca,
+    Rrca,
+    Rla,
+    Rra,
 }
 
 impl std::fmt::Display for Instruction {
@@ -584,7 +594,12 @@ impl std::fmt::Display for Instruction {
 
             Self::Pop { dst } => write!(f, "POP {dst}"),
 
-            Self::Rst { vector } => write!(f, "RST ${vector:02x}")
+            Self::Rst { vector } => write!(f, "RST ${vector:02x}"),
+
+            Self::Rlca => write!(f, "RLCA"),
+            Self::Rrca => write!(f, "RRCA"),
+            Self::Rla => write!(f, "RLA"),
+            Self::Rra => write!(f, "RRA"),
         }
     }
 }
