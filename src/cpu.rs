@@ -378,7 +378,42 @@ impl Cpu {
             0x2b => Instruction::Dec16 { reg: Reg16::HL },
             0x3b => Instruction::Dec16 { reg: Reg16::SP },
 
+            0xcb => self.fetch_next_prefixed_instruction(bus),
+
             _ => todo!("unhandled instruction: {opcode:#04x}"),
+        }
+    }
+
+    pub fn fetch_next_prefixed_instruction<B>(&mut self, bus: &B) -> Instruction
+    where
+        B: Bus,
+    {
+        let opcode = self.fetch_next_byte(bus);
+        let src = match opcode & 0b0000_0111 {
+            0b0000_0000 => Arith8::Reg8(Reg8::B),
+            0b0000_0001 => Arith8::Reg8(Reg8::C),
+            0b0000_0010 => Arith8::Reg8(Reg8::D),
+            0b0000_0011 => Arith8::Reg8(Reg8::E),
+            0b0000_0100 => Arith8::Reg8(Reg8::H),
+            0b0000_0101 => Arith8::Reg8(Reg8::L),
+            0b0000_0110 => Arith8::AtHL,
+            0b0000_0111 => Arith8::Reg8(Reg8::A),
+            _ => unreachable!(),
+        };
+        let bit = (opcode & 0b0011_1000) >> 3;
+
+        match opcode {
+            0x00..=0x07 => Instruction::Rlc { src },
+            0x08..=0x0f => Instruction::Rrc { src },
+            0x10..=0x17 => Instruction::Rl { src },
+            0x18..=0x1f => Instruction::Rr { src },
+            0x20..=0x27 => Instruction::Sla { src },
+            0x28..=0x2f => Instruction::Sra { src },
+            0x30..=0x37 => Instruction::Swap { src },
+            0x38..=0x3f => Instruction::Srl { src },
+            0x40..=0x7f => Instruction::Bit { bit, src },
+            0x80..=0xbf => Instruction::Res { bit, src },
+            0xc0..=0xff => Instruction::Set { bit, src },
         }
     }
 
@@ -661,6 +696,53 @@ pub enum Instruction {
     Cp {
         src: Arith8,
     },
+
+    Rlc {
+        src: Arith8,
+    },
+
+    Rrc {
+        src: Arith8,
+    },
+
+    Rl {
+        src: Arith8,
+    },
+
+    Rr {
+        src: Arith8,
+    },
+
+    Sla {
+        src: Arith8,
+    },
+
+    Sra {
+        src: Arith8,
+    },
+
+    Swap {
+        src: Arith8,
+    },
+
+    Srl {
+        src: Arith8,
+    },
+
+    Bit {
+        bit: u8,
+        src: Arith8,
+    },
+
+    Res {
+        bit: u8,
+        src: Arith8,
+    },
+
+    Set {
+        bit: u8,
+        src: Arith8,
+    },
 }
 
 impl std::fmt::Display for Instruction {
@@ -742,6 +824,18 @@ impl std::fmt::Display for Instruction {
             Self::Xor { src } => write!(f, "XOR {}, {src}", Reg8::A),
             Self::Or { src } => write!(f, "OR {}, {src}", Reg8::A),
             Self::Cp { src } => write!(f, "CP {}, {src}", Reg8::A),
+
+            Self::Rlc { src } => write!(f, "RLC {src}"),
+            Self::Rrc { src } => write!(f, "RRC {src}"),
+            Self::Rl { src } => write!(f, "RL {src}"),
+            Self::Rr { src } => write!(f, "RR {src}"),
+            Self::Sla { src } => write!(f, "SLA {src}"),
+            Self::Sra { src } => write!(f, "SRA {src}"),
+            Self::Swap { src } => write!(f, "SWAP {src}"),
+            Self::Srl { src } => write!(f, "SRL {src}"),
+            Self::Bit { bit, src } => write!(f, "BIT {bit}, {src}"),
+            Self::Res { bit, src } => write!(f, "RES {bit}, {src}"),
+            Self::Set { bit, src } => write!(f, "SET {bit}, {src}"),
         }
     }
 }
