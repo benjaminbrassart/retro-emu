@@ -133,17 +133,21 @@ impl Cpu {
 
         match opcode {
             0x00 => Instruction::Nop,
+
             0xd3 | 0xdb | 0xe3 | 0xe4 | 0xeb | 0xec | 0xed | 0xf4 | 0xfc | 0xfd => {
                 Instruction::Illegal { opcode }
             }
+
             0x10 => {
                 let code = self.fetch_next_byte(bus);
 
                 Instruction::Stop { code }
             }
+
             0x76 => Instruction::Halt,
             0xf3 => Instruction::DisableInterrupts,
             0xfb => Instruction::EnableInterrupts,
+
             0x02 | 0x12 | 0x22 | 0x32 => {
                 let dst = match opcode {
                     0x02 => Dst8::AtReg16(Reg16::BC),
@@ -158,6 +162,7 @@ impl Cpu {
                     dst,
                 }
             }
+
             0x06 | 0x16 | 0x26 | 0x36 => {
                 let dst = match opcode {
                     0x06 => Dst8::Reg8(Reg8::B),
@@ -170,6 +175,7 @@ impl Cpu {
 
                 Instruction::Load8 { src, dst }
             }
+
             0x0a | 0x1a | 0x2a | 0x3a => {
                 let src = match opcode {
                     0x0a => Src8::AtReg16(Reg16::BC),
@@ -184,6 +190,7 @@ impl Cpu {
                     dst: Dst8::Reg8(Reg8::A),
                 }
             }
+
             0x0e | 0x1e | 0x2e | 0x3e => {
                 let dst = match opcode {
                     0x0e => Dst8::Reg8(Reg8::C),
@@ -196,6 +203,7 @@ impl Cpu {
 
                 Instruction::Load8 { src, dst }
             }
+
             0x40..0x76 | 0x77..0x80 => {
                 let src = match opcode & 0b0000_0111 {
                     0b0000_0000 => Src8::Reg8(Reg8::B),
@@ -223,6 +231,105 @@ impl Cpu {
 
                 Instruction::Load8 { src, dst }
             }
+
+            0x18 => Instruction::JumpRelative {
+                offset: self.fetch_next_byte(bus) as i8,
+                condition: None,
+            },
+            0x20 => Instruction::JumpRelative {
+                offset: self.fetch_next_byte(bus) as i8,
+                condition: Some(JumpCondition::NZ),
+            },
+            0x28 => Instruction::JumpRelative {
+                offset: self.fetch_next_byte(bus) as i8,
+                condition: Some(JumpCondition::Z),
+            },
+            0x30 => Instruction::JumpRelative {
+                offset: self.fetch_next_byte(bus) as i8,
+                condition: Some(JumpCondition::NC),
+            },
+            0x38 => Instruction::JumpRelative {
+                offset: self.fetch_next_byte(bus) as i8,
+                condition: Some(JumpCondition::C),
+            },
+
+            0xc9 => Instruction::Ret { condition: None },
+            0xc0 => Instruction::Ret {
+                condition: Some(JumpCondition::NZ),
+            },
+            0xc8 => Instruction::Ret {
+                condition: Some(JumpCondition::Z),
+            },
+            0xd0 => Instruction::Ret {
+                condition: Some(JumpCondition::NC),
+            },
+            0xd8 => Instruction::Ret {
+                condition: Some(JumpCondition::C),
+            },
+
+            0xc3 => Instruction::JumpAbsolute {
+                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
+                    self.fetch_next_byte(bus),
+                    self.fetch_next_byte(bus),
+                ])),
+                condition: None,
+            },
+            0xc2 => Instruction::JumpAbsolute {
+                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
+                    self.fetch_next_byte(bus),
+                    self.fetch_next_byte(bus),
+                ])),
+                condition: Some(JumpCondition::NZ),
+            },
+            0xca => Instruction::JumpAbsolute {
+                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
+                    self.fetch_next_byte(bus),
+                    self.fetch_next_byte(bus),
+                ])),
+                condition: Some(JumpCondition::Z),
+            },
+            0xd2 => Instruction::JumpAbsolute {
+                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
+                    self.fetch_next_byte(bus),
+                    self.fetch_next_byte(bus),
+                ])),
+                condition: Some(JumpCondition::NC),
+            },
+            0xda => Instruction::JumpAbsolute {
+                target: AbsoluteJumpTarget::Imm16(u16::from_le_bytes([
+                    self.fetch_next_byte(bus),
+                    self.fetch_next_byte(bus),
+                ])),
+                condition: Some(JumpCondition::C),
+            },
+            0xe9 => Instruction::JumpAbsolute {
+                target: AbsoluteJumpTarget::HL,
+                condition: None,
+            },
+
+            0xcd => Instruction::Call {
+                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                condition: None,
+            },
+            0xc4 => Instruction::Call {
+                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                condition: Some(JumpCondition::NZ),
+            },
+            0xcc => Instruction::Call {
+                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                condition: Some(JumpCondition::Z),
+            },
+            0xd4 => Instruction::Call {
+                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                condition: Some(JumpCondition::NC),
+            },
+            0xdc => Instruction::Call {
+                address: u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)]),
+                condition: Some(JumpCondition::C),
+            },
+
+            0xd9 => Instruction::Reti,
+
             _ => todo!("unhandled instruction: {opcode:#04x}"),
         }
     }
@@ -268,7 +375,6 @@ pub enum Reg16 {
     BC,
     DE,
     HL,
-    PC,
     SP,
 }
 
@@ -279,7 +385,6 @@ impl std::fmt::Display for Reg16 {
             Self::BC => write!(f, "BC"),
             Self::DE => write!(f, "DE"),
             Self::HL => write!(f, "HL"),
-            Self::PC => write!(f, "PC"),
             Self::SP => write!(f, "SP"),
         }
     }
@@ -387,6 +492,14 @@ pub enum Instruction {
         target: AbsoluteJumpTarget,
         condition: Option<JumpCondition>,
     },
+    Call {
+        address: u16,
+        condition: Option<JumpCondition>,
+    },
+    Ret {
+        condition: Option<JumpCondition>,
+    },
+    Reti,
 }
 
 impl std::fmt::Display for Instruction {
@@ -425,6 +538,24 @@ impl std::fmt::Display for Instruction {
                 target,
                 condition: Some(condition),
             } => write!(f, "JP {condition}, {target}"),
+
+            Self::Call {
+                address,
+                condition: None,
+            } => write!(f, "CALL {address:#06x}"),
+
+            Self::Call {
+                address,
+                condition: Some(condition),
+            } => write!(f, "CALL {condition}, {address:#06x}"),
+
+            Self::Ret { condition: None } => write!(f, "RET"),
+
+            Self::Ret {
+                condition: Some(condition),
+            } => write!(f, "RET {condition}"),
+
+            Self::Reti => write!(f, "RETI"),
         }
     }
 }
