@@ -127,7 +127,7 @@ impl Cpu {
     }
 
     pub fn jump_relative(&mut self, offset: i8) {
-        self.pc = self.pc.wrapping_add_signed(offset as _);
+        self.pc = self.pc.wrapping_add_signed(offset.into());
     }
 
     pub fn jump_absolute(&mut self, address: u16) {
@@ -563,29 +563,26 @@ impl Cpu {
             },
 
             0xc3 => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
+                address: self.fetch_next_word(bus),
                 condition: None,
             },
             0xc2 => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
+                address: self.fetch_next_word(bus),
                 condition: Some(JumpCondition::NZ),
             },
             0xca => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
+                address: self.fetch_next_word(bus),
                 condition: Some(JumpCondition::Z),
             },
             0xd2 => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
+                address: self.fetch_next_word(bus),
                 condition: Some(JumpCondition::NC),
             },
             0xda => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::Imm16(self.fetch_next_word(bus)),
+                address: self.fetch_next_word(bus),
                 condition: Some(JumpCondition::C),
             },
-            0xe9 => Instruction::JumpAbsolute {
-                target: AbsoluteJumpTarget::HL,
-                condition: None,
-            },
+            0xe9 => Instruction::JumpHL,
 
             0xcd => Instruction::Call {
                 address: self.fetch_next_word(bus),
@@ -847,6 +844,18 @@ pub enum Address {
     HighC,
 }
 
+impl Address {
+    pub fn cycles(&self) -> u8 {
+        match self {
+            Self::Register(_) => 0,
+            Self::HL(_) => 0,
+            Self::Immediate(_) => 2,
+            Self::HighImmediate(_) => 1,
+            Self::HighC => 0,
+        }
+    }
+}
+
 impl std::fmt::Display for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
@@ -883,6 +892,16 @@ pub enum Operand8 {
     Register(Reg8),
     Immediate(u8),
     Memory(Address),
+}
+
+impl Operand8 {
+    pub fn cycles(&self) -> u8 {
+        match self {
+            Self::Register(_) => 0,
+            Self::Immediate(_) => 1,
+            Self::Memory(address) => 1 + address.cycles(),
+        }
+    }
 }
 
 impl From<Reg8> for Operand8 {
@@ -956,21 +975,6 @@ impl std::fmt::Display for JumpCondition {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum AbsoluteJumpTarget {
-    Imm16(u16),
-    HL,
-}
-
-impl std::fmt::Display for AbsoluteJumpTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Self::Imm16(addr) => write!(f, "{addr:#06x}"),
-            Self::HL => write!(f, "{reg}", reg = Reg16::HL),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Instruction {
     Nop,
     Illegal {
@@ -991,9 +995,10 @@ pub enum Instruction {
         condition: Option<JumpCondition>,
     },
     JumpAbsolute {
-        target: AbsoluteJumpTarget,
+        address: u16,
         condition: Option<JumpCondition>,
     },
+    JumpHL,
     Call {
         address: u16,
         condition: Option<JumpCondition>,
@@ -1131,6 +1136,122 @@ pub enum Instruction {
     },
 }
 
+impl Instruction {
+    pub fn cycles(&self) -> u8 {
+        match self {
+            Self::Nop => 1,
+            Self::Illegal { .. } => 1,
+            Self::Stop { .. } => 2,
+            Self::Halt => 1,
+            Self::Load8 { dst, src } => 1 + dst.cycles() + src.cycles(),
+            Self::JumpRelative { .. } => 2,
+            Self::JumpAbsolute { .. } => 3,
+            Self::JumpHL => 1,
+            Self::Call { .. } => 3,
+            Self::Ret { condition: None } => 4,
+            Self::Ret { condition: Some(_) } => 2,
+            Self::Reti => 4,
+            Self::Push { .. } => 4,
+            Self::Pop { .. } => 3,
+            Self::EnableInterrupts => 1,
+            Self::DisableInterrupts => 1,
+            Self::Rst { .. } => 4,
+            Self::Rlca => 1,
+            Self::Rrca => 1,
+            Self::Rla => 1,
+            Self::Rra => 1,
+            Self::Daa => 1,
+            Self::Cpl => 1,
+            Self::Scf => 1,
+            Self::Ccf => 1,
+            Self::Add16 { .. } => 2,
+            Self::AddSP { .. } => 4,
+            Self::Load16 { .. } => todo!(),
+            Self::LoadSPOffset { .. } => 3,
+            Self::Inc8 { reg } => 1 + reg.cycles() * 2,
+            Self::Dec8 { reg } => 1 + reg.cycles() * 2,
+            Self::Inc16 { .. } => 2,
+            Self::Dec16 { .. } => 2,
+            Self::Rlc { src } => 2 + src.cycles() * 2,
+            Self::Rrc { src } => 2 + src.cycles() * 2,
+            Self::Rl { src } => 2 + src.cycles() * 2,
+            Self::Rr { src } => 2 + src.cycles() * 2,
+            Self::Sra { src } => 2 + src.cycles() * 2,
+            Self::Sla { src } => 2 + src.cycles() * 2,
+            Self::Swap { src } => 2 + src.cycles() * 2,
+            Self::Srl { src } => 2 + src.cycles() * 2,
+            Self::Bit { src, .. } => 2 + src.cycles(),
+            Self::Res { src, .. } => 2 + src.cycles() * 2,
+            Self::Set { src, .. } => 2 + src.cycles() * 2,
+            Self::Add { src } => 1 + src.cycles(),
+            Self::Adc { src } => 1 + src.cycles(),
+            Self::Sub { src } => 1 + src.cycles(),
+            Self::Sbc { src } => 1 + src.cycles(),
+            Self::And { src } => 1 + src.cycles(),
+            Self::Xor { src } => 1 + src.cycles(),
+            Self::Or { src } => 1 + src.cycles(),
+            Self::Cp { src } => 1 + src.cycles(),
+        }
+    }
+
+    pub fn branch_cycles(&self) -> Option<u8> {
+        match self {
+            Self::JumpRelative { .. } => Some(1),
+            Self::JumpAbsolute { .. } => Some(1),
+            Self::Call { .. } => Some(3),
+            Self::Ret { condition: None } => None,
+            Self::Ret { condition: Some(_) } => Some(3),
+            Self::JumpHL => None,
+            Self::Nop => None,
+            Self::Illegal { .. } => None,
+            Self::Stop { .. } => None,
+            Self::Halt => None,
+            Self::Load8 { .. } => None,
+            Self::Reti => None,
+            Self::Push { .. } => None,
+            Self::Pop { .. } => None,
+            Self::EnableInterrupts => None,
+            Self::DisableInterrupts => None,
+            Self::Rst { .. } => None,
+            Self::Rlca => None,
+            Self::Rrca => None,
+            Self::Rla => None,
+            Self::Rra => None,
+            Self::Daa => None,
+            Self::Cpl => None,
+            Self::Scf => None,
+            Self::Ccf => None,
+            Self::Add16 { .. } => None,
+            Self::AddSP { .. } => None,
+            Self::Load16 { .. } => None,
+            Self::LoadSPOffset { .. } => None,
+            Self::Inc8 { .. } => None,
+            Self::Dec8 { .. } => None,
+            Self::Inc16 { .. } => None,
+            Self::Dec16 { .. } => None,
+            Self::Rlc { .. } => None,
+            Self::Rrc { .. } => None,
+            Self::Rl { .. } => None,
+            Self::Rr { .. } => None,
+            Self::Sra { .. } => None,
+            Self::Sla { .. } => None,
+            Self::Swap { .. } => None,
+            Self::Srl { .. } => None,
+            Self::Bit { .. } => None,
+            Self::Res { .. } => None,
+            Self::Set { .. } => None,
+            Self::Add { .. } => None,
+            Self::Adc { .. } => None,
+            Self::Sub { .. } => None,
+            Self::Sbc { .. } => None,
+            Self::And { .. } => None,
+            Self::Xor { .. } => None,
+            Self::Or { .. } => None,
+            Self::Cp { .. } => None,
+        }
+    }
+}
+
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
@@ -1159,14 +1280,16 @@ impl std::fmt::Display for Instruction {
             } => write!(f, "JR {condition}, {offset}"),
 
             Self::JumpAbsolute {
-                target,
+                address,
                 condition: None,
-            } => write!(f, "JP {target}"),
+            } => write!(f, "JP {address:#06x}"),
 
             Self::JumpAbsolute {
-                target,
+                address,
                 condition: Some(condition),
-            } => write!(f, "JP {condition}, {target}"),
+            } => write!(f, "JP {condition}, {address:#06x}"),
+
+            Self::JumpHL => write!(f, "JP {reg}", reg = Reg16::HL),
 
             Self::Call {
                 address,
