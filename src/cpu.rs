@@ -267,89 +267,25 @@ impl Cpu {
             0xf3 => Instruction::DisableInterrupts,
             0xfb => Instruction::EnableInterrupts,
 
-            0x02 | 0x12 | 0x22 | 0x32 => {
-                let dst = match opcode {
-                    0x02 => Operand8::Memory(Reg16::BC.into()),
-                    0x12 => Operand8::Memory(Reg16::DE.into()),
-                    0x22 => Operand8::Memory(HLMode::Increment.into()),
-                    0x32 => Operand8::Memory(HLMode::Increment.into()),
-                    _ => unreachable!(),
-                };
+            0x02 | 0x12 | 0x22 | 0x32 => Instruction::Load8 {
+                dst: Operand8::from_ld_r16_opcode(opcode),
+                src: Reg8::A.into(),
+            },
 
-                Instruction::Load8 {
-                    src: Reg8::A.into(),
-                    dst,
-                }
-            }
+            0x06 | 0x0e | 0x16 | 0x1e | 0x26 | 0x2e | 0x36 | 0x3e => Instruction::Load8 {
+                dst: Operand8::from_opcode(opcode),
+                src: self.fetch_next_byte(bus).into(),
+            },
 
-            0x06 | 0x16 | 0x26 | 0x36 => {
-                let dst = match opcode {
-                    0x06 => Reg8::B.into(),
-                    0x16 => Reg8::D.into(),
-                    0x26 => Reg8::H.into(),
-                    0x36 => Address::Register(Reg16::HL).into(),
-                    _ => unreachable!(),
-                };
-                let src = self.fetch_next_byte(bus).into();
+            0x0a | 0x1a | 0x2a | 0x3a => Instruction::Load8 {
+                dst: Reg8::A.into(),
+                src: Operand8::from_ld_r16_opcode(opcode),
+            },
 
-                Instruction::Load8 { src, dst }
-            }
-
-            0x0a | 0x1a | 0x2a | 0x3a => {
-                let src = match opcode {
-                    0x0a => Operand8::Memory(Reg16::BC.into()),
-                    0x1a => Operand8::Memory(Reg16::DE.into()),
-                    0x2a => Address::HL(HLMode::Increment).into(),
-                    0x3a => Address::HL(HLMode::Decrement).into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Load8 {
-                    src,
-                    dst: Reg8::A.into(),
-                }
-            }
-
-            0x0e | 0x1e | 0x2e | 0x3e => {
-                let dst = match opcode {
-                    0x0e => Reg8::C.into(),
-                    0x1e => Reg8::E.into(),
-                    0x2e => Reg8::L.into(),
-                    0x3e => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-                let src = self.fetch_next_byte(bus).into();
-
-                Instruction::Load8 { src, dst }
-            }
-
-            0x40..0x76 | 0x77..0x80 => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                let dst = match (opcode & 0b0011_1000) >> 3 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Load8 { src, dst }
-            }
+            0x40..0x76 | 0x77..0x80 => Instruction::Load8 {
+                dst: Operand8::from_opcode(opcode >> 3),
+                src: Operand8::from_opcode(opcode),
+            },
 
             0xea | 0xfa => {
                 let address = self.fetch_next_word(bus);
@@ -371,251 +307,110 @@ impl Cpu {
                 src: self.fetch_next_byte(bus).into(),
             },
 
-            0x80..=0x87 => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Add { src }
-            }
+            0x80..=0x87 => Instruction::Add {
+                src: Operand8::from_opcode(opcode),
+            },
 
             0xce => Instruction::Adc {
                 src: self.fetch_next_byte(bus).into(),
             },
 
-            0x88..=0x8f => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Adc { src }
-            }
+            0x88..=0x8f => Instruction::Adc {
+                src: Operand8::from_opcode(opcode),
+            },
 
             0xd6 => Instruction::Sub {
                 src: self.fetch_next_byte(bus).into(),
             },
 
-            0x90..=0x97 => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Sub { src }
-            }
+            0x90..=0x97 => Instruction::Sub {
+                src: Operand8::from_opcode(opcode),
+            },
 
             0xde => Instruction::Sbc {
                 src: self.fetch_next_byte(bus).into(),
             },
 
-            0x98..=0x9f => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Sbc { src }
-            }
+            0x98..=0x9f => Instruction::Sbc {
+                src: Operand8::from_opcode(opcode),
+            },
 
             0xe6 => Instruction::And {
                 src: self.fetch_next_byte(bus).into(),
             },
 
-            0xa0..=0xa7 => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::And { src }
-            }
+            0xa0..=0xa7 => Instruction::And {
+                src: Operand8::from_opcode(opcode),
+            },
 
             0xee => Instruction::Xor {
                 src: self.fetch_next_byte(bus).into(),
             },
 
-            0xa8..=0xaf => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Xor { src }
-            }
+            0xa8..=0xaf => Instruction::Xor {
+                src: Operand8::from_opcode(opcode),
+            },
 
             0xf6 => Instruction::Or {
                 src: self.fetch_next_byte(bus).into(),
             },
 
-            0xb0..=0xb7 => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Or { src }
-            }
+            0xb0..=0xb7 => Instruction::Or {
+                src: Operand8::from_opcode(opcode),
+            },
 
             0xfe => Instruction::Cp {
                 src: self.fetch_next_byte(bus).into(),
             },
 
-            0xb8..=0xbf => {
-                let src = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Cp { src }
-            }
+            0xb8..=0xbf => Instruction::Cp {
+                src: Operand8::from_opcode(opcode),
+            },
 
             0x18 => Instruction::JumpRelative {
                 offset: self.fetch_next_byte(bus) as i8,
                 condition: None,
             },
-            0x20 => Instruction::JumpRelative {
+            0x20 | 0x28 | 0x30 | 0x38 => Instruction::JumpRelative {
                 offset: self.fetch_next_byte(bus) as i8,
-                condition: Some(JumpCondition::NZ),
-            },
-            0x28 => Instruction::JumpRelative {
-                offset: self.fetch_next_byte(bus) as i8,
-                condition: Some(JumpCondition::Z),
-            },
-            0x30 => Instruction::JumpRelative {
-                offset: self.fetch_next_byte(bus) as i8,
-                condition: Some(JumpCondition::NC),
-            },
-            0x38 => Instruction::JumpRelative {
-                offset: self.fetch_next_byte(bus) as i8,
-                condition: Some(JumpCondition::C),
+                condition: Some(JumpCondition::from_opcode(opcode)),
             },
 
             0xc9 => Instruction::Ret { condition: None },
-            0xc0 => Instruction::Ret {
-                condition: Some(JumpCondition::NZ),
-            },
-            0xc8 => Instruction::Ret {
-                condition: Some(JumpCondition::Z),
-            },
-            0xd0 => Instruction::Ret {
-                condition: Some(JumpCondition::NC),
-            },
-            0xd8 => Instruction::Ret {
-                condition: Some(JumpCondition::C),
+            0xc0 | 0xc8 | 0xd0 | 0xd8 => Instruction::Ret {
+                condition: Some(JumpCondition::from_opcode(opcode)),
             },
 
             0xc3 => Instruction::JumpAbsolute {
                 address: self.fetch_next_word(bus),
                 condition: None,
             },
-            0xc2 => Instruction::JumpAbsolute {
+
+            0xc2 | 0xca | 0xd2 | 0xda => Instruction::JumpAbsolute {
                 address: self.fetch_next_word(bus),
-                condition: Some(JumpCondition::NZ),
+                condition: Some(JumpCondition::from_opcode(opcode)),
             },
-            0xca => Instruction::JumpAbsolute {
-                address: self.fetch_next_word(bus),
-                condition: Some(JumpCondition::Z),
-            },
-            0xd2 => Instruction::JumpAbsolute {
-                address: self.fetch_next_word(bus),
-                condition: Some(JumpCondition::NC),
-            },
-            0xda => Instruction::JumpAbsolute {
-                address: self.fetch_next_word(bus),
-                condition: Some(JumpCondition::C),
-            },
+
             0xe9 => Instruction::JumpHL,
 
             0xcd => Instruction::Call {
                 address: self.fetch_next_word(bus),
                 condition: None,
             },
-            0xc4 => Instruction::Call {
+
+            0xc4 | 0xcc | 0xd4 | 0xdc => Instruction::Call {
                 address: self.fetch_next_word(bus),
-                condition: Some(JumpCondition::NZ),
-            },
-            0xcc => Instruction::Call {
-                address: self.fetch_next_word(bus),
-                condition: Some(JumpCondition::Z),
-            },
-            0xd4 => Instruction::Call {
-                address: self.fetch_next_word(bus),
-                condition: Some(JumpCondition::NC),
-            },
-            0xdc => Instruction::Call {
-                address: self.fetch_next_word(bus),
-                condition: Some(JumpCondition::C),
+                condition: Some(JumpCondition::from_opcode(opcode)),
             },
 
             0xd9 => Instruction::Reti,
 
-            0xc1 => Instruction::Pop { dst: Reg16::BC },
-            0xd1 => Instruction::Pop { dst: Reg16::DE },
-            0xe1 => Instruction::Pop { dst: Reg16::HL },
-            0xf1 => Instruction::Pop { dst: Reg16::AF },
-
-            0xc5 => Instruction::Push { src: Reg16::BC },
-            0xd5 => Instruction::Push { src: Reg16::DE },
-            0xe5 => Instruction::Push { src: Reg16::HL },
-            0xf5 => Instruction::Push { src: Reg16::AF },
+            0xc1 | 0xd1 | 0xe1 | 0xf1 => Instruction::Pop {
+                dst: Reg16::from_stack_opcode(opcode),
+            },
+            0xc5 | 0xd5 | 0xe5 | 0xf5 => Instruction::Push {
+                src: Reg16::from_stack_opcode(opcode),
+            },
 
             0xc7 | 0xcf | 0xd7 | 0xdf | 0xe7 | 0xef | 0xf7 | 0xff => {
                 let vector = (opcode & 0b0011_1000) >> 3;
@@ -628,33 +423,16 @@ impl Cpu {
             0x17 => Instruction::Rla,
             0x1f => Instruction::Rra,
 
-            0x03 => Instruction::Inc16 { reg: Reg16::BC },
-            0x13 => Instruction::Inc16 { reg: Reg16::DE },
-            0x23 => Instruction::Inc16 { reg: Reg16::HL },
-            0x33 => Instruction::Inc16 { reg: Reg16::SP },
-
-            0x0b => Instruction::Dec16 { reg: Reg16::BC },
-            0x1b => Instruction::Dec16 { reg: Reg16::DE },
-            0x2b => Instruction::Dec16 { reg: Reg16::HL },
-            0x3b => Instruction::Dec16 { reg: Reg16::SP },
-
-            0x01 => Instruction::Load16 {
-                dst: Reg16::BC.into(),
-                src: Operand16::Immediate(self.fetch_next_word(bus)),
+            0x03 | 0x13 | 0x23 | 0x33 => Instruction::Inc16 {
+                reg: Reg16::from_regular_opcode(opcode),
             },
 
-            0x11 => Instruction::Load16 {
-                dst: Reg16::DE.into(),
-                src: Operand16::Immediate(self.fetch_next_word(bus)),
+            0x0b | 0x1b | 0x2b | 0x3b => Instruction::Dec16 {
+                reg: Reg16::from_regular_opcode(opcode),
             },
 
-            0x21 => Instruction::Load16 {
-                dst: Reg16::HL.into(),
-                src: Operand16::Immediate(self.fetch_next_word(bus)),
-            },
-
-            0x31 => Instruction::Load16 {
-                dst: Reg16::SP.into(),
+            0x01 | 0x11 | 0x21 | 0x31 => Instruction::Load16 {
+                dst: Reg16::from_regular_opcode(opcode).into(),
                 src: Operand16::Immediate(self.fetch_next_word(bus)),
             },
 
@@ -667,47 +445,22 @@ impl Cpu {
                 src: Reg16::HL.into(),
             },
 
-            0x04 | 0x0c | 0x14 | 0x1c | 0x24 | 0x2c | 0x34 | 0x3c => {
-                let reg = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
+            0x04 | 0x0c | 0x14 | 0x1c | 0x24 | 0x2c | 0x34 | 0x3c => Instruction::Inc8 {
+                reg: Operand8::from_opcode(opcode),
+            },
 
-                Instruction::Inc8 { reg }
-            }
-
-            0x05 | 0x0d | 0x15 | 0x1d | 0x25 | 0x2d | 0x35 | 0x3d => {
-                let reg = match opcode & 0b0000_0111 {
-                    0b0000_0000 => Reg8::B.into(),
-                    0b0000_0001 => Reg8::C.into(),
-                    0b0000_0010 => Reg8::D.into(),
-                    0b0000_0011 => Reg8::E.into(),
-                    0b0000_0100 => Reg8::H.into(),
-                    0b0000_0101 => Reg8::L.into(),
-                    0b0000_0110 => Address::Register(Reg16::HL).into(),
-                    0b0000_0111 => Reg8::A.into(),
-                    _ => unreachable!(),
-                };
-
-                Instruction::Dec8 { reg }
-            }
+            0x05 | 0x0d | 0x15 | 0x1d | 0x25 | 0x2d | 0x35 | 0x3d => Instruction::Dec8 {
+                reg: Operand8::from_opcode(opcode),
+            },
 
             0x27 => Instruction::Daa,
             0x2f => Instruction::Cpl,
             0x37 => Instruction::Scf,
             0x3f => Instruction::Ccf,
 
-            0x09 => Instruction::Add16 { src: Reg16::BC },
-            0x19 => Instruction::Add16 { src: Reg16::DE },
-            0x29 => Instruction::Add16 { src: Reg16::HL },
-            0x39 => Instruction::Add16 { src: Reg16::SP },
+            0x09 | 0x19 | 0x29 | 0x39 => Instruction::Add16 {
+                src: Reg16::from_regular_opcode(opcode),
+            },
 
             0xe8 => Instruction::AddSP {
                 offset: self.fetch_next_byte(bus) as i8,
@@ -747,17 +500,7 @@ impl Cpu {
         B: Bus,
     {
         let opcode = self.fetch_next_byte(bus);
-        let src = match opcode & 0b0000_0111 {
-            0b0000_0000 => Reg8::B.into(),
-            0b0000_0001 => Reg8::C.into(),
-            0b0000_0010 => Reg8::D.into(),
-            0b0000_0011 => Reg8::E.into(),
-            0b0000_0100 => Reg8::H.into(),
-            0b0000_0101 => Reg8::L.into(),
-            0b0000_0110 => Address::Register(Reg16::HL).into(),
-            0b0000_0111 => Reg8::A.into(),
-            _ => unreachable!(),
-        };
+        let src = Operand8::from_opcode(opcode);
         let bit = (opcode & 0b0011_1000) >> 3;
 
         match opcode {
@@ -815,6 +558,28 @@ pub enum Reg16 {
     DE,
     HL,
     SP,
+}
+
+impl Reg16 {
+    pub fn from_regular_opcode(opcode: u8) -> Self {
+        match (opcode & 0b0011_0000) >> 4 {
+            0b00 => Self::BC,
+            0b01 => Self::DE,
+            0b10 => Self::HL,
+            0b11 => Self::SP,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn from_stack_opcode(opcode: u8) -> Self {
+        match (opcode & 0b0011_0000) >> 4 {
+            0b00 => Self::BC,
+            0b01 => Self::DE,
+            0b10 => Self::HL,
+            0b11 => Self::AF,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl std::fmt::Display for Reg16 {
@@ -895,6 +660,30 @@ pub enum Operand8 {
 }
 
 impl Operand8 {
+    pub fn from_opcode(opcode: u8) -> Self {
+        match opcode & 0b0000_0111 {
+            0b0000_0000 => Reg8::B.into(),
+            0b0000_0001 => Reg8::C.into(),
+            0b0000_0010 => Reg8::D.into(),
+            0b0000_0011 => Reg8::E.into(),
+            0b0000_0100 => Reg8::H.into(),
+            0b0000_0101 => Reg8::L.into(),
+            0b0000_0110 => Address::Register(Reg16::HL).into(),
+            0b0000_0111 => Reg8::A.into(),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn from_ld_r16_opcode(opcode: u8) -> Self {
+        match (opcode & 0b0011_0000) >> 3 {
+            0b00 => Self::Memory(Reg16::BC.into()),
+            0b01 => Self::Memory(Reg16::DE.into()),
+            0b10 => Address::HL(HLMode::Increment).into(),
+            0b11 => Address::HL(HLMode::Decrement).into(),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn cycles(&self) -> u8 {
         match self {
             Self::Register(_) => 0,
@@ -961,6 +750,18 @@ pub enum JumpCondition {
     Z,
     NC,
     C,
+}
+
+impl JumpCondition {
+    pub fn from_opcode(bits: u8) -> Self {
+        match (bits & 0b0001_1000) >> 3 {
+            0b00 => Self::NZ,
+            0b01 => Self::Z,
+            0b10 => Self::NC,
+            0b11 => Self::C,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl std::fmt::Display for JumpCondition {
