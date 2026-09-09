@@ -103,7 +103,7 @@ impl Cpu {
         self.f = flags.into()
     }
 
-    pub fn modify_flags<F>(&mut self, f: F)
+    pub fn update_flags<F>(&mut self, f: F)
     where
         F: FnOnce(&mut CpuFlags),
     {
@@ -112,6 +112,177 @@ impl Cpu {
         f(&mut flags);
 
         self.set_flags(flags);
+    }
+
+    pub fn check_jump_condition(&self, condition: Option<JumpCondition>) -> bool {
+        let flags = self.get_flags();
+
+        match condition {
+            None => true,
+            Some(JumpCondition::NZ) => !flags.zero,
+            Some(JumpCondition::Z) => flags.zero,
+            Some(JumpCondition::NC) => !flags.carry,
+            Some(JumpCondition::C) => flags.carry,
+        }
+    }
+
+    pub fn jump_relative(&mut self, offset: i8) {
+        self.pc = self.pc.wrapping_add_signed(offset as _);
+    }
+
+    pub fn jump_absolute(&mut self, address: u16) {
+        self.pc = address;
+    }
+
+    pub fn push<B>(&mut self, bus: &mut B, value: u16)
+    where
+        B: Bus,
+    {
+        let buf = value.to_le_bytes();
+        let sp = self.sp.wrapping_sub(1);
+
+        bus.write_byte(sp, buf[0]);
+
+        let sp = sp.wrapping_sub(1);
+
+        bus.write_byte(sp, buf[1]);
+
+        self.sp = sp;
+    }
+
+    pub fn pop<B>(&mut self, bus: &B) -> u16
+    where
+        B: Bus,
+    {
+        let sp = self.sp;
+        let lo = bus.read_byte(sp);
+
+        let sp = sp.wrapping_sub(1);
+        let hi = bus.read_byte(sp);
+
+        self.sp = sp.wrapping_sub(1);
+
+        u16::from_le_bytes([lo, hi])
+    }
+
+    pub fn call<B>(&mut self, bus: &mut B, address: u16)
+    where
+        B: Bus,
+    {
+        self.push(bus, address);
+        self.jump_absolute(address);
+    }
+
+    pub fn ret<B>(&mut self, bus: &B)
+    where
+        B: Bus,
+    {
+        let address = self.pop(bus);
+
+        self.jump_absolute(address);
+    }
+
+    pub fn get_reg8(&self, reg: Reg8) -> u8 {
+        match reg {
+            Reg8::A => self.a,
+            Reg8::B => self.b,
+            Reg8::C => self.c,
+            Reg8::D => self.d,
+            Reg8::E => self.e,
+            Reg8::H => self.h,
+            Reg8::L => self.l,
+        }
+    }
+
+    pub fn set_reg8(&mut self, reg: Reg8, value: u8) {
+        match reg {
+            Reg8::A => self.a = value,
+            Reg8::B => self.b = value,
+            Reg8::C => self.c = value,
+            Reg8::D => self.d = value,
+            Reg8::E => self.e = value,
+            Reg8::H => self.h = value,
+            Reg8::L => self.l = value,
+        }
+    }
+
+    pub fn get_reg16(&self, reg: Reg16) -> u16 {
+        match reg {
+            Reg16::AF => self.get_af(),
+            Reg16::BC => self.get_bc(),
+            Reg16::DE => self.get_de(),
+            Reg16::HL => self.get_hl(),
+            Reg16::SP => self.sp,
+        }
+    }
+
+    pub fn set_reg16(&mut self, reg: Reg16, value: u16) {
+        match reg {
+            Reg16::AF => self.set_af(value),
+            Reg16::BC => self.set_bc(value),
+            Reg16::DE => self.set_de(value),
+            Reg16::HL => self.set_hl(value),
+            Reg16::SP => self.sp = value,
+        }
+    }
+
+    pub fn fetch_src8<B>(&mut self, bus: &B, src: Src8) -> u8
+    where
+        B: Bus,
+    {
+        match src {
+            Src8::Reg8(reg) => self.get_reg8(reg),
+            Src8::Imm8(b) => b,
+            Src8::AtReg16(reg) => {
+                let addr = self.get_reg16(reg);
+
+                bus.read_byte(addr)
+            }
+            Src8::AtImm16(addr) => bus.read_byte(addr),
+            Src8::AtHLI => {
+                let hl = self.get_hl();
+                let b = bus.read_byte(hl);
+
+                self.set_hl(hl.wrapping_add(1));
+
+                b
+            }
+            Src8::AtHLD => {
+                let hl = self.get_hl();
+                let b = bus.read_byte(hl);
+
+                self.set_hl(hl.wrapping_sub(1));
+
+                b
+            }
+        }
+    }
+
+    pub fn store_dst8<B>(&mut self, bus: &mut B, dst: Dst8, value: u8)
+    where
+        B: Bus,
+    {
+        match dst {
+            Dst8::Reg8(reg) => self.set_reg8(reg, value),
+            Dst8::AtReg16(reg) => {
+                let addr = self.get_reg16(reg);
+
+                bus.write_byte(addr, value)
+            }
+            Dst8::AtImm16(addr) => bus.write_byte(addr, value),
+            Dst8::AtHLI => {
+                let hl = self.get_hl();
+
+                bus.write_byte(hl, value);
+                self.set_hl(hl.wrapping_add(1));
+            }
+            Dst8::AtHLD => {
+                let hl = self.get_hl();
+
+                bus.write_byte(hl, value);
+                self.set_hl(hl.wrapping_sub(1));
+            }
+        }
     }
 
     pub fn fetch_next_byte<B>(&mut self, bus: &B) -> u8
