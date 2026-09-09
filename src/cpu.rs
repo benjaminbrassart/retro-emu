@@ -257,11 +257,9 @@ impl Cpu {
                 Instruction::Illegal { opcode }
             }
 
-            0x10 => {
-                let code = self.fetch_next_byte(bus);
-
-                Instruction::Stop { code }
-            }
+            0x10 => Instruction::Stop {
+                code: self.fetch_next_byte(bus),
+            },
 
             0x76 => Instruction::Halt,
             0xf3 => Instruction::DisableInterrupts,
@@ -287,21 +285,15 @@ impl Cpu {
                 src: Operand8::from_opcode(opcode),
             },
 
-            0xea | 0xfa => {
-                let address = self.fetch_next_word(bus);
+            0xea => Instruction::Load8 {
+                dst: Operand8::Memory(self.fetch_next_word(bus).into()),
+                src: Reg8::A.into(),
+            },
 
-                if opcode == 0xfa {
-                    Instruction::Load8 {
-                        dst: Operand8::Memory(address.into()),
-                        src: Reg8::A.into(),
-                    }
-                } else {
-                    Instruction::Load8 {
-                        dst: Reg8::A.into(),
-                        src: Operand8::Memory(address.into()),
-                    }
-                }
-            }
+            0xfa => Instruction::Load8 {
+                dst: Reg8::A.into(),
+                src: Operand8::Memory(self.fetch_next_word(bus).into()),
+            },
 
             0xc6 => Instruction::Add {
                 src: self.fetch_next_byte(bus).into(),
