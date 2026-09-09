@@ -226,64 +226,6 @@ impl Cpu {
         }
     }
 
-    // pub fn fetch_u8<B>(&mut self, bus: &B, src: Operand8) -> u8
-    // where
-    //     B: Bus,
-    // {
-    //     match src {
-    //         Src8::Imm8(b) => b,
-    //         Src8::AtReg16(reg) => {
-    //             let addr = self.get_reg16(reg);
-
-    //             bus.read_byte(addr)
-    //         }
-    //         Src8::AtImm16(addr) => bus.read_byte(addr),
-    //         Src8::AtHLI => {
-    //             let hl = self.get_hl();
-    //             let b = bus.read_byte(hl);
-
-    //             self.set_hl(hl.wrapping_add(1));
-
-    //             b
-    //         }
-    //         Src8::AtHLD => {
-    //             let hl = self.get_hl();
-    //             let b = bus.read_byte(hl);
-
-    //             self.set_hl(hl.wrapping_sub(1));
-
-    //             b
-    //         }
-    //     }
-    // }
-
-    // pub fn store_u8<B>(&mut self, bus: &mut B, dst: Operand8, value: u8)
-    // where
-    //     B: Bus,
-    // {
-    //     match dst {
-    //         Operand8::Register(reg) => self.set_reg8(reg, value),
-    //         Operand8::AtReg16(reg) => {
-    //             let addr = self.get_reg16(reg);
-
-    //             bus.write_byte(addr, value)
-    //         }
-    //         Operand8::AtImm16(addr) => bus.write_byte(addr, value),
-    //         Operand8::AtHLI => {
-    //             let hl = self.get_hl();
-
-    //             bus.write_byte(hl, value);
-    //             self.set_hl(hl.wrapping_add(1));
-    //         }
-    //         Operand8::AtHLD => {
-    //             let hl = self.get_hl();
-
-    //             bus.write_byte(hl, value);
-    //             self.set_hl(hl.wrapping_sub(1));
-    //         }
-    //     }
-    // }
-
     pub fn fetch_next_byte<B>(&mut self, bus: &B) -> u8
     where
         B: Bus,
@@ -1023,7 +965,7 @@ impl std::fmt::Display for AbsoluteJumpTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::Imm16(addr) => write!(f, "{addr:#06x}"),
-            Self::HL => write!(f, "{}", Reg16::HL),
+            Self::HL => write!(f, "{reg}", reg = Reg16::HL),
         }
     }
 }
@@ -1206,7 +1148,6 @@ impl std::fmt::Display for Instruction {
 
             Self::Load8 { dst, src } => write!(f, "LD {dst}, {src}"),
 
-            // Self::LoadHigh { dst, src } => write!(f, "LDH {dst}, {src}"),
             Self::JumpRelative {
                 offset,
                 condition: None,
@@ -1261,14 +1202,14 @@ impl std::fmt::Display for Instruction {
 
             Self::Load16 { dst, src } => write!(f, "LD {dst}, {src}"),
 
-            Self::Add { src } => write!(f, "ADD {}, {src}", Reg8::A),
-            Self::Adc { src } => write!(f, "ADC {}, {src}", Reg8::A),
-            Self::Sub { src } => write!(f, "SUB {}, {src}", Reg8::A),
-            Self::Sbc { src } => write!(f, "SBC {}, {src}", Reg8::A),
-            Self::And { src } => write!(f, "AND {}, {src}", Reg8::A),
-            Self::Xor { src } => write!(f, "XOR {}, {src}", Reg8::A),
-            Self::Or { src } => write!(f, "OR {}, {src}", Reg8::A),
-            Self::Cp { src } => write!(f, "CP {}, {src}", Reg8::A),
+            Self::Add { src } => write!(f, "ADD {dst}, {src}", dst = Reg8::A),
+            Self::Adc { src } => write!(f, "ADC {dst}, {src}", dst = Reg8::A),
+            Self::Sub { src } => write!(f, "SUB {dst}, {src}", dst = Reg8::A),
+            Self::Sbc { src } => write!(f, "SBC {dst}, {src}", dst = Reg8::A),
+            Self::And { src } => write!(f, "AND {dst}, {src}", dst = Reg8::A),
+            Self::Xor { src } => write!(f, "XOR {dst}, {src}", dst = Reg8::A),
+            Self::Or { src } => write!(f, "OR {dst}, {src}", dst = Reg8::A),
+            Self::Cp { src } => write!(f, "CP {dst}, {src}", dst = Reg8::A),
 
             Self::Rlc { src } => write!(f, "RLC {src}"),
             Self::Rrc { src } => write!(f, "RRC {src}"),
@@ -1290,8 +1231,8 @@ impl std::fmt::Display for Instruction {
             Self::Scf => write!(f, "SCF"),
             Self::Ccf => write!(f, "CCF"),
 
-            Self::Add16 { src } => write!(f, "ADD {}, {src}", Reg16::HL),
-            Self::AddSP { offset } => write!(f, "ADD {}, {offset}", Reg16::SP),
+            Self::Add16 { src } => write!(f, "ADD {dst}, {src}", dst = Reg16::HL),
+            Self::AddSP { offset } => write!(f, "ADD {dst}, {offset}", dst = Reg16::SP),
 
             Self::LoadSPOffset { offset } => {
                 let sign = if *offset < 0 { '-' } else { '+' };
