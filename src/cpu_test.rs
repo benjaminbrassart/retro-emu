@@ -13,6 +13,139 @@ impl Bus for TestBus {
     }
 }
 
+#[test]
+fn encode_decode_flags() {
+    let inputs = [
+        (
+            0b0000_0000,
+            CpuFlags {
+                zero: false,
+                sub: false,
+                half: false,
+                carry: false,
+            },
+        ),
+        (
+            0b0001_0000,
+            CpuFlags {
+                zero: false,
+                sub: false,
+                half: false,
+                carry: true,
+            },
+        ),
+        (
+            0b0010_0000,
+            CpuFlags {
+                zero: false,
+                sub: false,
+                half: true,
+                carry: false,
+            },
+        ),
+        (
+            0b0011_0000,
+            CpuFlags {
+                zero: false,
+                sub: false,
+                half: true,
+                carry: true,
+            },
+        ),
+        (
+            0b0100_0000,
+            CpuFlags {
+                zero: false,
+                sub: true,
+                half: false,
+                carry: false,
+            },
+        ),
+        (
+            0b0101_0000,
+            CpuFlags {
+                zero: false,
+                sub: true,
+                half: false,
+                carry: true,
+            },
+        ),
+        (
+            0b0110_0000,
+            CpuFlags {
+                zero: false,
+                sub: true,
+                half: true,
+                carry: false,
+            },
+        ),
+        (
+            0b0111_0000,
+            CpuFlags {
+                zero: false,
+                sub: true,
+                half: true,
+                carry: true,
+            },
+        ),
+        (
+            0b1000_0000,
+            CpuFlags {
+                zero: true,
+                sub: false,
+                half: false,
+                carry: false,
+            },
+        ),
+        (
+            0b1001_0000,
+            CpuFlags {
+                zero: true,
+                sub: false,
+                half: false,
+                carry: true,
+            },
+        ),
+        (
+            0b1011_0000,
+            CpuFlags {
+                zero: true,
+                sub: false,
+                half: true,
+                carry: true,
+            },
+        ),
+        (
+            0b1110_0000,
+            CpuFlags {
+                zero: true,
+                sub: true,
+                half: true,
+                carry: false,
+            },
+        ),
+        (
+            0b1111_0000,
+            CpuFlags {
+                zero: true,
+                sub: true,
+                half: true,
+                carry: true,
+            },
+        ),
+    ];
+
+    for (bits, flags) in inputs {
+        let cpu = Cpu {
+            f: bits,
+            ..Default::default()
+        };
+
+        assert_eq!(bits, Into::<u8>::into(flags));
+        assert_eq!(cpu.get_flags(), flags, "bits: {bits:#010b}");
+    }
+}
+
 fn assert_decode(input: Vec<u8>, want: Instruction, pc: u16) {
     let mut cpu = Cpu::default();
     let bus = TestBus(input);

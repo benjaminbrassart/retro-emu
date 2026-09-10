@@ -1,5 +1,6 @@
-use crate::bus::Bus;
+use crate::bus::{Bus, BusExt};
 
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct CpuFlags {
     pub zero: bool,
     pub sub: bool,
