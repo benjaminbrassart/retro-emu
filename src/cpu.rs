@@ -511,11 +511,336 @@ impl Cpu {
         }
     }
 
-    pub fn handle_instruction<B>(&mut self, _: &mut B, _: Instruction) -> usize
+    pub fn rl(src: u8, carry: bool) -> (u8, bool) {
+        let carry_out = if carry { 0b0000_0001 } else { 0b0000_0000 };
+
+        (src << 1 | carry_out, src & 0b1000_0000 == 0b1000_0000)
+    }
+
+    pub fn rr(src: u8, carry: bool) -> (u8, bool) {
+        let carry_out = if carry { 0b1000_0000 } else { 0b0000_0000 };
+
+        (carry_out | src >> 1, src & 0b0000_0001 == 0b0000_0001)
+    }
+
+    pub fn rlc(src: u8, carry: bool) -> (u8, bool) {
+        todo!()
+    }
+
+    pub fn rrc(src: u8, carry: bool) -> (u8, bool) {
+        todo!()
+    }
+
+    pub fn sla(src: u8) -> (u8, bool) {
+        let carry_out = src & 0b1000_0000 == 0b1000_0000;
+
+        (src << 1, carry_out)
+    }
+
+    pub fn sra(src: u8) -> (u8, bool) {
+        let carry_out = src & 0b0000_0001 == 0b0000_0001;
+
+        (src >> 1 | src & 0b1000_0000, carry_out)
+    }
+
+    pub fn srl(src: u8) -> (u8, bool) {
+        let carry_out = src & 0b0000_0001 == 0b0000_0001;
+
+        (src >> 1, carry_out)
+    }
+
+    pub fn add(src: u8) -> (u8, bool, bool) {
+        todo!()
+    }
+
+    pub fn adc(src: u8, carry: bool) -> (u8, bool, bool) {
+        todo!()
+    }
+
+    pub fn sub(src: u8) -> (u8, bool, bool) {
+        todo!()
+    }
+
+    pub fn sbc(src: u8, carry: bool) -> (u8, bool, bool) {
+        todo!()
+    }
+
+    pub fn add16(src: u16) -> (u16, bool, bool) {
+        todo!()
+    }
+
+    pub fn handle_instruction<B>(&mut self, bus: &mut B, instruction: Instruction)
     where
         B: Bus,
     {
-        todo!()
+        match instruction {
+            Instruction::Nop => (),
+            Instruction::Push { src } => {
+                let value = self.fetch_word(bus, src.into());
+
+                self.push(bus, value);
+            }
+            Instruction::Pop { dst } => {
+                let value = self.pop(bus);
+
+                self.store_word(bus, dst.into(), value);
+            }
+            Instruction::Inc16 { reg } => {
+                let value = self.get_reg16(reg);
+
+                self.set_reg16(reg, value.wrapping_add(1));
+            }
+            Instruction::Dec16 { reg } => {
+                let value = self.get_reg16(reg);
+
+                self.set_reg16(reg, value.wrapping_sub(1));
+            }
+            Instruction::Load8 { dst, src } => {
+                let value = self.fetch_byte(bus, src);
+
+                self.store_byte(bus, dst, value);
+            }
+            Instruction::Load16 { dst, src } => {
+                let value = self.fetch_word(bus, src);
+
+                self.store_word(bus, dst, value);
+            }
+            Instruction::Rlca => {
+                let (value, carry) = Self::rlc(self.a, self.get_flags().carry);
+
+                self.a = value;
+                self.update_flags(|flags| {
+                    flags.zero = false;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Rlc { src } => {
+                let input = self.fetch_byte(bus, src);
+                let (value, carry) = Self::rlc(input, self.get_flags().carry);
+
+                self.store_byte(bus, src, value);
+                self.update_flags(|flags| {
+                    flags.zero = value == 0;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Rla => {
+                let (value, carry) = Self::rl(self.a, self.get_flags().carry);
+
+                self.a = value;
+                self.update_flags(|flags| {
+                    flags.zero = false;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Rl { src } => {
+                let input = self.fetch_byte(bus, src);
+                let (value, carry) = Self::rl(input, self.get_flags().carry);
+
+                self.store_byte(bus, src, value);
+                self.update_flags(|flags| {
+                    flags.zero = value == 0;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Rrca => {
+                let (value, carry) = Self::rrc(self.a, self.get_flags().carry);
+
+                self.a = value;
+                self.update_flags(|flags| {
+                    flags.zero = false;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Rrc { src } => {
+                let input = self.fetch_byte(bus, src);
+                let (value, carry) = Self::rrc(input, self.get_flags().carry);
+
+                self.store_byte(bus, src, value);
+                self.update_flags(|flags| {
+                    flags.zero = value == 0;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Rra => {
+                let (value, carry) = Self::rr(self.a, self.get_flags().carry);
+
+                self.a = value;
+                self.update_flags(|flags| {
+                    flags.zero = false;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Rr { src } => {
+                let input = self.fetch_byte(bus, src);
+                let (value, carry) = Self::rr(input, self.get_flags().carry);
+
+                self.store_byte(bus, src, value);
+                self.update_flags(|flags| {
+                    flags.zero = value == 0;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Sla { src } => {
+                let input = self.fetch_byte(bus, src);
+                let (value, carry) = Self::sla(input);
+
+                self.store_byte(bus, src, value);
+                self.update_flags(|flags| {
+                    flags.zero = value == 0;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Sra { src } => {
+                let input = self.fetch_byte(bus, src);
+                let (value, carry) = Self::sra(input);
+
+                self.store_byte(bus, src, value);
+                self.update_flags(|flags| {
+                    flags.zero = value == 0;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Srl { src } => {
+                let input = self.fetch_byte(bus, src);
+                let (value, carry) = Self::srl(input);
+
+                self.store_byte(bus, src, value);
+                self.update_flags(|flags| {
+                    flags.zero = value == 0;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = carry;
+                });
+            }
+            Instruction::Swap { src } => {
+                let input = self.fetch_byte(bus, src);
+                let value = input << 4 | input >> 4;
+
+                self.store_byte(bus, src, value);
+                self.update_flags(|flags| {
+                    flags.zero = value == 0;
+                    flags.sub = false;
+                    flags.half = false;
+                    flags.carry = false;
+                });
+            }
+            Instruction::Bit { bit, src } => {
+                let input = self.fetch_byte(bus, src);
+
+                self.update_flags(|flags| {
+                    flags.zero = input & (1 << bit) == 0;
+                    flags.sub = false;
+                    flags.half = true;
+                })
+            }
+            Instruction::Res { bit, src } => {
+                let input = self.fetch_byte(bus, src);
+                let value = input & !(1 << bit);
+
+                self.store_byte(bus, src, value);
+            }
+            Instruction::Set { bit, src } => {
+                let input = self.fetch_byte(bus, src);
+                let value = input | (1 << bit);
+
+                self.store_byte(bus, src, value);
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn high_address(off: u8) -> u16 {
+        u16::wrapping_add(0xff00, off.into())
+    }
+
+    fn get_memory(&mut self, mem: Address) -> u16 {
+        match mem {
+            Address::Register(reg) => self.get_reg16(reg),
+            Address::HL(mode) => {
+                let step = match mode {
+                    HLMode::Increment => 1,
+                    HLMode::Decrement => -1,
+                };
+
+                let hl = self.get_hl();
+
+                self.set_hl(hl.wrapping_sub_signed(step));
+
+                hl
+            }
+            Address::Immediate(addr) => addr,
+            Address::HighImmediate(off) => Self::high_address(off),
+            Address::HighC => Self::high_address(self.c),
+        }
+    }
+
+    pub fn fetch_byte<B>(&mut self, bus: &B, src: Operand8) -> u8
+    where
+        B: Bus,
+    {
+        match src {
+            Operand8::Register(reg) => self.get_reg8(reg),
+            Operand8::Immediate(b) => b,
+            Operand8::Memory(mem) => bus.read_byte(self.get_memory(mem)),
+        }
+    }
+
+    pub fn store_byte<B>(&mut self, bus: &mut B, dst: Operand8, value: u8)
+    where
+        B: Bus,
+    {
+        match dst {
+            Operand8::Register(reg) => self.set_reg8(reg, value),
+            Operand8::Immediate(_) => unreachable!("writing to immediate value"),
+            Operand8::Memory(mem) => {
+                let address = self.get_memory(mem);
+
+                bus.write_byte(address, value)
+            }
+        }
+    }
+
+    pub fn fetch_word<B>(&mut self, bus: &B, src: Operand16) -> u16
+    where
+        B: Bus,
+    {
+        match src {
+            Operand16::Register(reg) => self.get_reg16(reg),
+            Operand16::Immediate(w) => w,
+            Operand16::Absolute(address) => bus.read_word(address),
+        }
+    }
+
+    pub fn store_word<B>(&mut self, bus: &mut B, dst: Operand16, value: u16)
+    where
+        B: Bus,
+    {
+        match dst {
+            Operand16::Register(reg) => self.set_reg16(reg, value),
+            Operand16::Immediate(_) => unreachable!("writing to immediate value"),
+            Operand16::Absolute(address) => bus.write_word(address, value),
+        }
     }
 }
 
