@@ -573,15 +573,11 @@ impl Cpu {
     }
 
     pub fn add16(lhs: u16, rhs: u16) -> (u16, bool, bool) {
-        let (res, carry) = lhs.overflowing_add(rhs);
-
-        (res, false, carry) // XXX
+        todo!()
     }
 
     pub fn add16_signed(lhs: u16, rhs: i8) -> (u16, bool, bool) {
-        let (res, carry) = lhs.overflowing_add_signed(rhs.into());
-
-        (res, false, carry) // XXX
+        todo!()
     }
 
     pub fn handle_instruction<B>(&mut self, bus: &mut B, instruction: Instruction)
