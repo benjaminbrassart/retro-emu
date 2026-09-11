@@ -619,7 +619,7 @@ impl Cpu {
             }
             Instruction::Reti => {
                 self.ret(bus);
-                todo!("set IME = 1")
+                todo!("set IME = 1 AFTER next instruction")
             },
             Instruction::JumpHL => {
                 let address = self.get_hl();
