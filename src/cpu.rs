@@ -49,6 +49,8 @@ pub struct Cpu {
     pub l: u8,
     pub pc: u16,
     pub sp: u16,
+    pub ime: bool,
+    pub ime_pending: bool,
 }
 
 impl Cpu {
@@ -580,18 +582,43 @@ impl Cpu {
         todo!()
     }
 
-    pub fn handle_instruction<B>(&mut self, bus: &mut B, instruction: Instruction)
+    pub fn handle_interrupts<B>(&mut self, bus: &mut B) -> u8
     where
         B: Bus,
     {
+        let enable = bus.read_byte(0xffff);
+        let flag = bus.read_byte(0xff0f);
+        let pending = enable & flag & 0b0001_1111;
+
+        let Some(interrupt) = pending.lowest_one() else {
+            return 0;
+        };
+
+        // XXX wake from halt/stop
+
+        if self.ime {
+            self.call(bus, 0x40 + interrupt as u16 * 8);
+            5
+        } else {
+            0
+        }
+    }
+
+    fn handle_instruction_inner<B>(&mut self, bus: &mut B, instruction: Instruction) -> u8
+    where
+        B: Bus,
+    {
+        let mut cycles = instruction.cycles();
+        let branch_cycles = instruction.branch_cycles();
+
         match instruction {
             Instruction::Nop => (),
             Instruction::Illegal { opcode } => panic!("illegal instruction: {opcode:#04x}"),
             Instruction::EnableInterrupts => {
-                todo!("set IME = 1 AFTER next instruction")
+                self.ime_pending = true;
             }
             Instruction::DisableInterrupts => {
-                todo!("set IME = 0")
+                self.ime = false;
             }
             Instruction::Push { src } => {
                 let value = self.fetch_word(bus, src.into());
@@ -606,21 +633,21 @@ impl Cpu {
             Instruction::Call { address, condition } => {
                 if self.check_jump_condition(condition) {
                     self.call(bus, address);
-                }
 
-                // XXX return proper M-cycles
+                    cycles += branch_cycles;
+                }
             }
             Instruction::Ret { condition } => {
                 if self.check_jump_condition(condition) {
                     self.ret(bus);
-                }
 
-                // XXX return proper M-cycles
+                    cycles += branch_cycles;
+                }
             }
             Instruction::Reti => {
                 self.ret(bus);
-                todo!("set IME = 1 AFTER next instruction")
-            },
+                self.ime_pending = true;
+            }
             Instruction::JumpHL => {
                 let address = self.get_hl();
 
@@ -629,9 +656,9 @@ impl Cpu {
             Instruction::JumpAbsolute { address, condition } => {
                 if self.check_jump_condition(condition) {
                     self.jump_absolute(address);
-                }
 
-                // XXX return proper M-cycles
+                    cycles += branch_cycles;
+                }
             }
             Instruction::JumpRelative { offset, condition } => {
                 if self.check_jump_condition(condition) {
@@ -1010,6 +1037,25 @@ impl Cpu {
             Instruction::Halt => todo!("halt"),
             Instruction::Daa => todo!("daa"),
         }
+
+        cycles
+    }
+
+    pub fn handle_instruction<B>(&mut self, bus: &mut B, instruction: Instruction) -> u8
+    where
+        B: Bus,
+    {
+        let ime_pending = self.ime_pending;
+        let cycles = self.handle_instruction_inner(bus, instruction);
+
+        if ime_pending {
+            // XXX wrong if halted
+
+            self.ime = true;
+            self.ime_pending = false;
+        }
+
+        cycles
     }
 
     fn high_address(off: u8) -> u16 {
@@ -1555,60 +1601,60 @@ impl Instruction {
         }
     }
 
-    pub fn branch_cycles(&self) -> Option<u8> {
+    pub fn branch_cycles(&self) -> u8 {
         match self {
-            Self::JumpRelative { .. } => Some(1),
-            Self::JumpAbsolute { .. } => Some(1),
-            Self::Call { .. } => Some(3),
-            Self::Ret { condition: None } => None,
-            Self::Ret { condition: Some(_) } => Some(3),
-            Self::JumpHL => None,
-            Self::Nop => None,
-            Self::Illegal { .. } => None,
-            Self::Stop { .. } => None,
-            Self::Halt => None,
-            Self::Load8 { .. } => None,
-            Self::Reti => None,
-            Self::Push { .. } => None,
-            Self::Pop { .. } => None,
-            Self::EnableInterrupts => None,
-            Self::DisableInterrupts => None,
-            Self::Rst { .. } => None,
-            Self::Rlca => None,
-            Self::Rrca => None,
-            Self::Rla => None,
-            Self::Rra => None,
-            Self::Daa => None,
-            Self::Cpl => None,
-            Self::Scf => None,
-            Self::Ccf => None,
-            Self::Add16 { .. } => None,
-            Self::AddSP { .. } => None,
-            Self::Load16 { .. } => None,
-            Self::LoadSPOffset { .. } => None,
-            Self::Inc8 { .. } => None,
-            Self::Dec8 { .. } => None,
-            Self::Inc16 { .. } => None,
-            Self::Dec16 { .. } => None,
-            Self::Rlc { .. } => None,
-            Self::Rrc { .. } => None,
-            Self::Rl { .. } => None,
-            Self::Rr { .. } => None,
-            Self::Sra { .. } => None,
-            Self::Sla { .. } => None,
-            Self::Swap { .. } => None,
-            Self::Srl { .. } => None,
-            Self::Bit { .. } => None,
-            Self::Res { .. } => None,
-            Self::Set { .. } => None,
-            Self::Add { .. } => None,
-            Self::Adc { .. } => None,
-            Self::Sub { .. } => None,
-            Self::Sbc { .. } => None,
-            Self::And { .. } => None,
-            Self::Xor { .. } => None,
-            Self::Or { .. } => None,
-            Self::Cp { .. } => None,
+            Self::JumpRelative { .. } => 1,
+            Self::JumpAbsolute { .. } => 1,
+            Self::Call { .. } => 3,
+            Self::Ret { condition: None } => 0,
+            Self::Ret { condition: Some(_) } => 3,
+            Self::JumpHL => 0,
+            Self::Nop => 0,
+            Self::Illegal { .. } => 0,
+            Self::Stop { .. } => 0,
+            Self::Halt => 0,
+            Self::Load8 { .. } => 0,
+            Self::Reti => 0,
+            Self::Push { .. } => 0,
+            Self::Pop { .. } => 0,
+            Self::EnableInterrupts => 0,
+            Self::DisableInterrupts => 0,
+            Self::Rst { .. } => 0,
+            Self::Rlca => 0,
+            Self::Rrca => 0,
+            Self::Rla => 0,
+            Self::Rra => 0,
+            Self::Daa => 0,
+            Self::Cpl => 0,
+            Self::Scf => 0,
+            Self::Ccf => 0,
+            Self::Add16 { .. } => 0,
+            Self::AddSP { .. } => 0,
+            Self::Load16 { .. } => 0,
+            Self::LoadSPOffset { .. } => 0,
+            Self::Inc8 { .. } => 0,
+            Self::Dec8 { .. } => 0,
+            Self::Inc16 { .. } => 0,
+            Self::Dec16 { .. } => 0,
+            Self::Rlc { .. } => 0,
+            Self::Rrc { .. } => 0,
+            Self::Rl { .. } => 0,
+            Self::Rr { .. } => 0,
+            Self::Sra { .. } => 0,
+            Self::Sla { .. } => 0,
+            Self::Swap { .. } => 0,
+            Self::Srl { .. } => 0,
+            Self::Bit { .. } => 0,
+            Self::Res { .. } => 0,
+            Self::Set { .. } => 0,
+            Self::Add { .. } => 0,
+            Self::Adc { .. } => 0,
+            Self::Sub { .. } => 0,
+            Self::Sbc { .. } => 0,
+            Self::And { .. } => 0,
+            Self::Xor { .. } => 0,
+            Self::Or { .. } => 0,
+            Self::Cp { .. } => 0,
         }
     }
 }
