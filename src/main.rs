@@ -1,4 +1,5 @@
 mod cartridge;
+mod registers;
 
 fn main() {
     let args = std::env::args().skip(1).collect::<Box<[_]>>();
