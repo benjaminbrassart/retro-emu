@@ -1,0 +1,24 @@
+flowchart-elk TD
+
+    subgraph Host
+        render["Renderer (main)"]
+    end
+
+    subgraph GameBoy
+        rom["ROM"]
+        mbc["MBC"]
+        cpu["CPU (debugger)"]
+        input["Input"]
+        sound["Sound"]
+        lcd["LCD"]
+
+        mbc <--> cpu
+        sound --- cpu
+        lcd --- cpu
+        input --> cpu
+        cpu --> render
+        render -->cpu
+        render --> input
+
+        rom --> mbc
+    end
