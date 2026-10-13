@@ -91,6 +91,9 @@ pub struct PpuRegisters {
     pub vbk: u8,
 }
 
+// XXX rename cartridge registers according to hardware.inc
+// See https://github.com/gbdev/hardware.inc
+
 pub struct Mbc1Registers {
     pub ram_enable: u8,
     pub rom_bank_number: u8,
