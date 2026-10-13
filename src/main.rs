@@ -1,5 +1,7 @@
+mod cpu;
 mod cartridge;
 mod registers;
+mod bus;
 
 fn main() {
     let args = std::env::args().skip(1).collect::<Box<[_]>>();
