@@ -1780,5 +1780,5 @@ impl std::fmt::Display for Instruction {
 }
 
 #[cfg(test)]
-#[path = "cpu_test.rs"]
+#[path = "tests.rs"]
 mod tests;
