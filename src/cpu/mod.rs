@@ -206,24 +206,6 @@ impl Cpu {
         }
     }
 
-    pub fn fetch_next_byte<B>(&mut self, bus: &B) -> u8
-    where
-        B: Bus,
-    {
-        let b = bus.read_byte(self.pc);
-
-        self.pc = self.pc.wrapping_add(1);
-
-        b
-    }
-
-    pub fn fetch_next_word<B>(&mut self, bus: &B) -> u16
-    where
-        B: Bus,
-    {
-        u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)])
-    }
-
     pub fn fetch_next_instruction<B>(&mut self, bus: &B) -> Instruction
     where
         B: Bus,
