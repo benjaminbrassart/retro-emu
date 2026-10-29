@@ -12,6 +12,8 @@ pub use instructions::*;
 mod decoder;
 use decoder::Decoder;
 
+mod arithmetic;
+
 #[derive(Default)]
 pub struct Cpu {
     pub a: u8,
@@ -234,75 +236,6 @@ impl Cpu {
         instruction
     }
 
-    pub fn rl(src: u8, carry: bool) -> (u8, bool) {
-        let carry_out = if carry { 0b0000_0001 } else { 0b0000_0000 };
-
-        (src << 1 | carry_out, src & 0b1000_0000 == 0b1000_0000)
-    }
-
-    pub fn rr(src: u8, carry: bool) -> (u8, bool) {
-        let carry_out = if carry { 0b1000_0000 } else { 0b0000_0000 };
-
-        (carry_out | src >> 1, src & 0b0000_0001 == 0b0000_0001)
-    }
-
-    pub fn rlc(src: u8) -> (u8, bool) {
-        (src.rotate_left(1), src & 0b1000_0000 == 0b1000_0000)
-    }
-
-    pub fn rrc(src: u8) -> (u8, bool) {
-        (src.rotate_right(1), src & 0b0000_0001 == 0b0000_0001)
-    }
-
-    pub fn sla(src: u8) -> (u8, bool) {
-        let carry_out = src & 0b1000_0000 == 0b1000_0000;
-
-        (src << 1, carry_out)
-    }
-
-    pub fn sra(src: u8) -> (u8, bool) {
-        let carry_out = src & 0b0000_0001 == 0b0000_0001;
-
-        (src >> 1 | src & 0b1000_0000, carry_out)
-    }
-
-    pub fn srl(src: u8) -> (u8, bool) {
-        let carry_out = src & 0b0000_0001 == 0b0000_0001;
-
-        (src >> 1, carry_out)
-    }
-
-    pub fn add(lhs: u8, rhs: u8) -> (u8, bool, bool) {
-        let (res, carry) = lhs.overflowing_add(rhs);
-        let half_carry = (lhs & 0x0f) + (rhs & 0x0f) > 0x0f;
-
-        (res, half_carry, carry)
-    }
-
-    pub fn adc(lhs: u8, rhs: u8, carry: bool) -> (u8, bool, bool) {
-        let (res, carry) = lhs.carrying_add(rhs, carry);
-        let (res_half, _) = (lhs & 0x0f).carrying_add(rhs & 0x0f, carry);
-        let half_carry = res_half > 0x0f;
-
-        (res, half_carry, carry)
-    }
-
-    pub fn sub(lhs: u8, rhs: u8) -> (u8, bool, bool) {
-        todo!()
-    }
-
-    pub fn sbc(lhs: u8, rhs: u8, carry: bool) -> (u8, bool, bool) {
-        todo!()
-    }
-
-    pub fn add16(lhs: u16, rhs: u16) -> (u16, bool, bool) {
-        todo!()
-    }
-
-    pub fn add16_signed(lhs: u16, rhs: i8) -> (u16, bool, bool) {
-        todo!()
-    }
-
     pub fn handle_interrupts<B>(&mut self, bus: &mut B) -> u8
     where
         B: Bus,
@@ -384,9 +317,9 @@ impl Cpu {
             Instruction::JumpRelative { offset, condition } => {
                 if self.check_jump_condition(condition) {
                     self.jump_relative(offset);
-                }
 
-                // XXX return proper M-cycles
+                    cycles += branch_cycles;
+                }
             }
             Instruction::Inc16 { reg } => {
                 let value = self.get_reg16(reg);
@@ -401,7 +334,7 @@ impl Cpu {
             Instruction::Add16 { src } => {
                 let lhs = self.get_hl();
                 let rhs = self.get_reg16(src);
-                let (res, half, carry) = Self::add16(lhs, rhs);
+                let (res, half, carry) = arithmetic::add16(lhs, rhs);
 
                 self.store_word(bus, src.into(), res);
                 self.update_flags(|flags| {
@@ -411,7 +344,7 @@ impl Cpu {
                 });
             }
             Instruction::AddSP { offset } => {
-                let (res, half, carry) = Self::add16_signed(self.sp, offset);
+                let (res, half, carry) = arithmetic::add16_signed(self.sp, offset);
 
                 self.sp = res;
                 self.update_flags(|flags| {
@@ -422,7 +355,7 @@ impl Cpu {
                 });
             }
             Instruction::LoadSPOffset { offset } => {
-                let (res, half, carry) = Self::add16_signed(self.sp, offset);
+                let (res, half, carry) = arithmetic::add16_signed(self.sp, offset);
 
                 self.set_hl(res);
                 self.update_flags(|flags| {
@@ -435,7 +368,7 @@ impl Cpu {
             Instruction::Add { src } => {
                 let lhs = self.a;
                 let rhs = self.fetch_byte(bus, src);
-                let (res, half, carry) = Self::add(lhs, rhs);
+                let (res, half, carry) = arithmetic::add(lhs, rhs);
 
                 self.a = res;
                 self.update_flags(|flags| {
@@ -449,7 +382,7 @@ impl Cpu {
                 let lhs = self.a;
                 let rhs = self.fetch_byte(bus, src);
                 let carry = self.get_flags().carry;
-                let (res, half, carry) = Self::adc(lhs, rhs, carry);
+                let (res, half, carry) = arithmetic::adc(lhs, rhs, carry);
 
                 self.a = res;
                 self.update_flags(|flags| {
@@ -462,7 +395,7 @@ impl Cpu {
             Instruction::Sub { src } => {
                 let lhs = self.a;
                 let rhs = self.fetch_byte(bus, src);
-                let (res, half, carry) = Self::sub(lhs, rhs);
+                let (res, half, carry) = arithmetic::sub(lhs, rhs);
 
                 self.a = res;
                 self.update_flags(|flags| {
@@ -476,7 +409,7 @@ impl Cpu {
                 let lhs = self.a;
                 let rhs = self.fetch_byte(bus, src);
                 let carry = self.get_flags().carry;
-                let (res, half, carry) = Self::sbc(lhs, rhs, carry);
+                let (res, half, carry) = arithmetic::sbc(lhs, rhs, carry);
 
                 self.a = res;
                 self.update_flags(|flags| {
@@ -528,7 +461,7 @@ impl Cpu {
             Instruction::Cp { src } => {
                 let lhs = self.a;
                 let rhs = self.fetch_byte(bus, src);
-                let (res, half, carry) = Self::sub(lhs, rhs);
+                let (res, half, carry) = arithmetic::sub(lhs, rhs);
 
                 self.update_flags(|flags| {
                     flags.zero = res == 0;
@@ -539,7 +472,7 @@ impl Cpu {
             }
             Instruction::Inc8 { reg } => {
                 let value = self.fetch_byte(bus, reg);
-                let (res, half, _) = Self::add(value, 1);
+                let (res, half, _) = arithmetic::add(value, 1);
 
                 self.store_byte(bus, reg, res);
                 self.update_flags(|flags| {
@@ -550,7 +483,7 @@ impl Cpu {
             }
             Instruction::Dec8 { reg } => {
                 let value = self.fetch_byte(bus, reg);
-                let (res, half, _) = Self::sub(value, 1);
+                let (res, half, _) = arithmetic::sub(value, 1);
 
                 self.store_byte(bus, reg, res);
                 self.update_flags(|flags| {
@@ -594,7 +527,7 @@ impl Cpu {
                 });
             }
             Instruction::Rlca => {
-                let (value, carry) = Self::rlc(self.a);
+                let (value, carry) = arithmetic::rlc(self.a);
 
                 self.a = value;
                 self.update_flags(|flags| {
@@ -606,7 +539,7 @@ impl Cpu {
             }
             Instruction::Rlc { src } => {
                 let input = self.fetch_byte(bus, src);
-                let (value, carry) = Self::rlc(input);
+                let (value, carry) = arithmetic::rlc(input);
 
                 self.store_byte(bus, src, value);
                 self.update_flags(|flags| {
@@ -617,7 +550,7 @@ impl Cpu {
                 });
             }
             Instruction::Rla => {
-                let (value, carry) = Self::rl(self.a, self.get_flags().carry);
+                let (value, carry) = arithmetic::rl(self.a, self.get_flags().carry);
 
                 self.a = value;
                 self.update_flags(|flags| {
@@ -629,18 +562,18 @@ impl Cpu {
             }
             Instruction::Rl { src } => {
                 let input = self.fetch_byte(bus, src);
-                let (value, carry) = Self::rl(input, self.get_flags().carry);
+                let (value, carry) = arithmetic::rl(input, self.get_flags().carry);
 
                 self.store_byte(bus, src, value);
                 self.update_flags(|flags| {
-                    flags.zero = value == 0;
+                    flags.zero = false;
                     flags.sub = false;
                     flags.half = false;
                     flags.carry = carry;
                 });
             }
             Instruction::Rrca => {
-                let (value, carry) = Self::rrc(self.a);
+                let (value, carry) = arithmetic::rrc(self.a);
 
                 self.a = value;
                 self.update_flags(|flags| {
@@ -652,7 +585,7 @@ impl Cpu {
             }
             Instruction::Rrc { src } => {
                 let input = self.fetch_byte(bus, src);
-                let (value, carry) = Self::rrc(input);
+                let (value, carry) = arithmetic::rrc(input);
 
                 self.store_byte(bus, src, value);
                 self.update_flags(|flags| {
@@ -663,7 +596,7 @@ impl Cpu {
                 });
             }
             Instruction::Rra => {
-                let (value, carry) = Self::rr(self.a, self.get_flags().carry);
+                let (value, carry) = arithmetic::rr(self.a, self.get_flags().carry);
 
                 self.a = value;
                 self.update_flags(|flags| {
@@ -675,7 +608,7 @@ impl Cpu {
             }
             Instruction::Rr { src } => {
                 let input = self.fetch_byte(bus, src);
-                let (value, carry) = Self::rr(input, self.get_flags().carry);
+                let (value, carry) = arithmetic::rr(input, self.get_flags().carry);
 
                 self.store_byte(bus, src, value);
                 self.update_flags(|flags| {
@@ -687,7 +620,7 @@ impl Cpu {
             }
             Instruction::Sla { src } => {
                 let input = self.fetch_byte(bus, src);
-                let (value, carry) = Self::sla(input);
+                let (value, carry) = arithmetic::sla(input);
 
                 self.store_byte(bus, src, value);
                 self.update_flags(|flags| {
@@ -699,7 +632,7 @@ impl Cpu {
             }
             Instruction::Sra { src } => {
                 let input = self.fetch_byte(bus, src);
-                let (value, carry) = Self::sra(input);
+                let (value, carry) = arithmetic::sra(input);
 
                 self.store_byte(bus, src, value);
                 self.update_flags(|flags| {
@@ -711,7 +644,7 @@ impl Cpu {
             }
             Instruction::Srl { src } => {
                 let input = self.fetch_byte(bus, src);
-                let (value, carry) = Self::srl(input);
+                let (value, carry) = arithmetic::srl(input);
 
                 self.store_byte(bus, src, value);
                 self.update_flags(|flags| {
