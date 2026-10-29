@@ -17,7 +17,7 @@ impl Bus for Mmu {
         match address {
             0x0000..=0x7fff => self.cartridge.read_rom(address),
             0x8000..=0x9fff => todo!("read from video RAM"),
-            0xa000..=0xbfff => self.cartridge.read_ram(address),
+            0xa000..=0xbfff => self.cartridge.read_ram(address - 0xa000),
             0xc000..=0xcfff => todo!("read from work RAM (bank 0)"),
             0xd000..=0xdfff => todo!("read from work RAM (dmg: bank 1, cgb: bank 1-7)"),
             0xe000..=0xfdff => self.read_byte(address - 0x2000), // echo
@@ -34,7 +34,7 @@ impl Bus for Mmu {
         match address {
             0x0000..=0x7fff => self.cartridge.write_rom(address, value),
             0x8000..=0x9fff => todo!("write to video RAM"),
-            0xa000..=0xbfff => self.cartridge.write_ram(address, value),
+            0xa000..=0xbfff => self.cartridge.write_ram(address - 0xa000, value),
             0xc000..=0xcfff => todo!("write to work RAM (bank 0)"),
             0xd000..=0xdfff => todo!("write to work RAM (dmg: bank 1, cgb: bank 1-7)"),
             0xe000..=0xfdff => self.write_byte(address - 0x2000, value), // echo
