@@ -4,6 +4,7 @@ mod cpu;
 mod emulator;
 mod mmu;
 mod registers;
+// mod timer;
 
 use emulator::Emulator;
 
