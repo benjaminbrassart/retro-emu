@@ -147,7 +147,7 @@ impl Operand8 {
     }
 
     pub fn from_ld_r16_opcode(opcode: u8) -> Self {
-        match (opcode & 0b0011_0000) >> 3 {
+        match (opcode & 0b0011_0000) >> 4 {
             0b00 => Self::Memory(Reg16::BC.into()),
             0b01 => Self::Memory(Reg16::DE.into()),
             0b10 => Address::HL(HLMode::Increment).into(),
