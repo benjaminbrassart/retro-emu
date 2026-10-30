@@ -398,7 +398,7 @@ mod tests {
         }
     }
 
-    // #[test]
+    #[test]
     fn decode_cycles_prefixed() {
         for opcode in 0..=255 {
             let mut decoder = super::Decoder::new(0);
