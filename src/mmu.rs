@@ -1,10 +1,12 @@
 use crate::bus::Bus;
 
 use crate::cartridge::CartridgeMapper;
+use crate::registers::IoRegister;
 
 pub struct Mmu {
     cartridge: Box<dyn CartridgeMapper>,
     interrupt_enable: u8, // IE
+    interrupt_flag: u8,   // IF
 }
 
 impl Mmu {
@@ -12,6 +14,23 @@ impl Mmu {
         Self {
             cartridge,
             interrupt_enable: 0,
+            interrupt_flag: 0,
+        }
+    }
+
+    fn read_io(&self, address: u8) -> u8 {
+        match IoRegister::try_from(address) {
+            Ok(IoRegister::IF) => self.interrupt_flag,
+            Ok(reg) => todo!("unhandled I/O register: {reg}"),
+            Err(_) => panic!("unknown I/O register: {address:#04x}"),
+        }
+    }
+
+    fn write_io(&mut self, address: u8, value: u8) {
+        match IoRegister::try_from(address) {
+            Ok(IoRegister::IF) => self.interrupt_flag = value,
+            Ok(reg) => todo!("unhandled I/O register: {reg}"),
+            Err(_) => panic!("unknown I/O register: {address:#04x}"),
         }
     }
 }
@@ -28,7 +47,7 @@ impl Bus for Mmu {
             0xfe00..=0xfe9f => todo!("{address:#06x}: read from OAM"),
             // https://gbdev.io/pandocs/Memory_Map.html#fea0feff-range
             0xfea0..=0xfeff => todo!("{address:#06x}: read from unusable memory range"),
-            0xff00..=0xff7f => todo!("{address:#06x}: read from I/O registers"),
+            0xff00..=0xff7f => self.read_io((address - 0xff00) as u8),
             0xff80..=0xfffe => todo!("{address:#06x}: read from high RAM"),
             0xffff => self.interrupt_enable,
         }
@@ -45,7 +64,7 @@ impl Bus for Mmu {
             0xfe00..=0xfe9f => todo!("{address:#06x}: write to OAM"),
             // https://gbdev.io/pandocs/Memory_Map.html#fea0feff-range
             0xfea0..=0xfeff => todo!("{address:#06x}: write to unusable memory range"),
-            0xff00..=0xff7f => todo!("{address:#06x}: write to I/O registers"),
+            0xff00..=0xff7f => self.write_io((address - 0xff00) as u8, value),
             0xff80..=0xfffe => todo!("{address:#06x}: write to high RAM"),
             0xffff => self.interrupt_enable = value,
         }

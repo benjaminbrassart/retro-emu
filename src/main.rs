@@ -3,6 +3,7 @@ mod cartridge;
 mod cpu;
 mod emulator;
 mod mmu;
+mod registers;
 
 use emulator::Emulator;
 
