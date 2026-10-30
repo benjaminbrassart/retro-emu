@@ -206,7 +206,7 @@ impl Cpu {
         }
     }
 
-    pub fn fetch_next_instruction<B>(&mut self, bus: &B) -> Instruction
+    pub fn fetch_next_instruction<B>(&mut self, bus: &mut B) -> Instruction
     where
         B: Bus,
     {
@@ -240,13 +240,10 @@ impl Cpu {
         }
     }
 
-    fn handle_instruction_inner<B>(&mut self, bus: &mut B, instruction: Instruction) -> u8
+    fn handle_instruction_inner<B>(&mut self, bus: &mut B, instruction: Instruction)
     where
         B: Bus,
     {
-        let mut cycles = instruction.cycles();
-        let branch_cycles = instruction.branch_cycles();
-
         match instruction {
             Instruction::Nop => (),
             Instruction::Illegal { opcode } => panic!("illegal instruction: {opcode:#04x}"),
@@ -269,15 +266,11 @@ impl Cpu {
             Instruction::Call { address, condition } => {
                 if self.check_jump_condition(condition) {
                     self.call(bus, address);
-
-                    cycles += branch_cycles;
                 }
             }
             Instruction::Ret { condition } => {
                 if self.check_jump_condition(condition) {
                     self.ret(bus);
-
-                    cycles += branch_cycles;
                 }
             }
             Instruction::Reti => {
@@ -292,15 +285,11 @@ impl Cpu {
             Instruction::JumpAbsolute { address, condition } => {
                 if self.check_jump_condition(condition) {
                     self.jump_absolute(address);
-
-                    cycles += branch_cycles;
                 }
             }
             Instruction::JumpRelative { offset, condition } => {
                 if self.check_jump_condition(condition) {
                     self.jump_relative(offset);
-
-                    cycles += branch_cycles;
                 }
             }
             Instruction::Inc16 { reg } => {
@@ -673,18 +662,17 @@ impl Cpu {
             Instruction::Halt => todo!("halt"),
             Instruction::Daa => todo!("daa"),
         }
-
-        cycles
     }
 
-    pub fn handle_instruction<B>(&mut self, bus: &mut B, instruction: Instruction) -> u8
+    pub fn handle_instruction<B>(&mut self, bus: &mut B, instruction: Instruction)
     where
         B: Bus,
     {
         // XXX move to executor
 
         let ime_pending = self.ime_pending;
-        let cycles = self.handle_instruction_inner(bus, instruction);
+
+        self.handle_instruction_inner(bus, instruction);
 
         if ime_pending {
             // XXX wrong if halted
@@ -692,8 +680,6 @@ impl Cpu {
             self.ime = true;
             self.ime_pending = false;
         }
-
-        cycles
     }
 
     fn high_address(off: u8) -> u16 {

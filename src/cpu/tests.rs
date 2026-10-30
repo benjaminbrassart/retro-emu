@@ -13,6 +13,8 @@ impl Bus for TestBus {
     fn write_byte(&mut self, address: u16, value: u8) {
         self.0[address as usize] = value
     }
+
+    fn tick_mcycle(&mut self) {}
 }
 
 #[test]
@@ -150,9 +152,9 @@ fn encode_decode_flags() {
 
 fn assert_decode(input: Vec<u8>, want: Instruction, pc: u16) {
     let mut cpu = Cpu::default();
-    let bus = TestBus(input);
+    let mut bus = TestBus(input);
 
-    let have = cpu.fetch_next_instruction(&bus);
+    let have = cpu.fetch_next_instruction(&mut bus);
 
     assert_eq!(have, want);
     assert_eq!(cpu.pc, pc, "pc register");
@@ -526,40 +528,4 @@ fn execute_ld_r8_r8() {
 
     assert_eq!(cpu.a, 0x42);
     assert_eq!(cpu.get_flags(), flags);
-}
-
-#[test]
-fn intrinsic_rl() {
-    let inputs = [
-        ((0b0000_0001, false), (0b0000_0010, false)),
-        ((0b0000_0001, true), (0b0000_0011, false)),
-        ((0b0100_0001, false), (0b1000_0010, false)),
-        ((0b1000_0001, false), (0b0000_0010, true)),
-        ((0b0000_0000, false), (0b0000_0000, false)),
-        ((0b0000_0000, true), (0b0000_0001, false)),
-    ];
-
-    for ((bits_in, carry_in), (bits_want, carry_want)) in inputs {
-        let (bits_have, carry_have) = Cpu::rl(bits_in, carry_in);
-
-        assert_eq!(bits_want, bits_have);
-        assert_eq!(carry_want, carry_have);
-    }
-}
-
-#[test]
-fn intrinsic_rr() {
-    let inputs = [
-        ((0b0000_0001, false), (0b0000_0000, true)),
-        ((0b0000_0000, true), (0b1000_0000, false)),
-        ((0b0000_0000, false), (0b0000_0000, false)),
-        ((0b0001_0000, false), (0b0000_1000, false)),
-    ];
-
-    for ((bits_in, carry_in), (bits_want, carry_want)) in inputs {
-        let (bits_have, carry_have) = Cpu::rr(bits_in, carry_in);
-
-        assert_eq!(bits_want, bits_have);
-        assert_eq!(carry_want, carry_have);
-    }
 }

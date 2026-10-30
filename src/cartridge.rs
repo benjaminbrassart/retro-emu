@@ -56,12 +56,14 @@ pub trait CartridgeMapper {
     fn write_rom(&mut self, address: u16, value: u8);
 
     fn write_ram(&mut self, address: u16, value: u8);
+
+    fn tick(&mut self);
 }
 
 pub struct PlainCartridgeMapper {
     pub rom: Box<[u8]>,
     pub ram: Box<[u8]>,
-    pub has_battery: bool,
+    // pub has_battery: bool,
 }
 
 impl CartridgeMapper for PlainCartridgeMapper {
@@ -80,6 +82,8 @@ impl CartridgeMapper for PlainCartridgeMapper {
             *b = value
         }
     }
+
+    fn tick(&mut self) {}
 }
 
 pub fn load_cartridge<R>(mut r: R) -> Result<Box<dyn CartridgeMapper>, LoadCartridgeError>
@@ -136,13 +140,13 @@ where
         0x00 | 0x08 => Box::new(PlainCartridgeMapper {
             rom: rom.into_boxed_slice(),
             ram: ram.into_boxed_slice(),
-            has_battery: false,
+            // has_battery: false,
         }),
 
         0x09 => Box::new(PlainCartridgeMapper {
             rom: rom.into_boxed_slice(),
             ram: ram.into_boxed_slice(),
-            has_battery: true,
+            // has_battery: true,
         }),
 
         0x01..=0x03 => todo!("cartridge: mbc1"),

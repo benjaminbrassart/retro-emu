@@ -24,13 +24,11 @@ impl Emulator {
         _ = handle;
 
         loop {
-            let cycles = self.cpu.handle_interrupts(&mut self.mmu);
-            _ = cycles;
+            self.cpu.handle_interrupts(&mut self.mmu);
 
             let instruction = self.cpu.fetch_next_instruction(&mut self.mmu);
 
-            let cycles = self.cpu.handle_instruction(&mut self.mmu, instruction);
-            _ = cycles;
+            self.cpu.handle_instruction(&mut self.mmu, instruction);
         }
     }
 }

@@ -18,6 +18,10 @@ impl Mmu {
         }
     }
 
+    fn tick_tcycle(&mut self) {
+        self.cartridge.tick();
+    }
+
     fn read_io(&self, address: u8) -> u8 {
         match IoRegister::try_from(address) {
             Ok(IoRegister::IF) => self.interrupt_flag,
@@ -67,6 +71,12 @@ impl Bus for Mmu {
             0xff00..=0xff7f => self.write_io((address - 0xff00) as u8, value),
             0xff80..=0xfffe => todo!("{address:#06x}: write to high RAM"),
             0xffff => self.interrupt_enable = value,
+        }
+    }
+
+    fn tick_mcycle(&mut self) {
+        for _ in 0..4 {
+            self.tick_tcycle();
         }
     }
 }

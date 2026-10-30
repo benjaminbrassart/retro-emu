@@ -15,25 +15,36 @@ impl Decoder {
         self.pc.wrapping_add(self.rc)
     }
 
-    fn fetch_next_byte<B>(&mut self, bus: &B) -> u8
+    fn fetch_byte<B>(&self, bus: &mut B, address: u16) -> u8
     where
         B: Bus,
     {
-        let b = bus.read_byte(self.get_current_pc());
+        let b = bus.read_byte(address);
+
+        bus.tick_mcycle();
+
+        b
+    }
+
+    fn fetch_next_byte<B>(&mut self, bus: &mut B) -> u8
+    where
+        B: Bus,
+    {
+        let b = self.fetch_byte(bus, self.get_current_pc());
 
         self.rc = self.rc.wrapping_add(1);
 
         b
     }
 
-    fn fetch_next_word<B>(&mut self, bus: &B) -> u16
+    fn fetch_next_word<B>(&mut self, bus: &mut B) -> u16
     where
         B: Bus,
     {
         u16::from_le_bytes([self.fetch_next_byte(bus), self.fetch_next_byte(bus)])
     }
 
-    pub fn decode_instruction<B>(&mut self, bus: &B) -> (Instruction, u16)
+    pub fn decode_instruction<B>(&mut self, bus: &mut B) -> (Instruction, u16)
     where
         B: Bus,
     {
@@ -278,7 +289,7 @@ impl Decoder {
         (instruction, self.rc)
     }
 
-    pub fn decode_prefixed_instruction<B>(&mut self, bus: &B) -> Instruction
+    pub fn decode_prefixed_instruction<B>(&mut self, bus: &mut B) -> Instruction
     where
         B: Bus,
     {
@@ -299,6 +310,106 @@ impl Decoder {
             0x40..=0x7f => Instruction::Bit { bit, src },
             0x80..=0xbf => Instruction::Res { bit, src },
             0xc0..=0xff => Instruction::Set { bit, src },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    struct TestBus {
+        pub ticks: u8,
+        pub memory: Box<[u8]>,
+    }
+
+    impl TestBus {
+        pub fn unprefixed(opcode: u8) -> Self {
+            Self {
+                ticks: 0,
+                memory: vec![opcode].into_boxed_slice(),
+            }
+        }
+
+        pub fn prefixed(opcode: u8) -> Self {
+            Self {
+                ticks: 0,
+                memory: vec![0xcb, opcode].into_boxed_slice(),
+            }
+        }
+    }
+
+    impl crate::bus::Bus for TestBus {
+        fn read_byte(&self, address: u16) -> u8 {
+            if let Some(b) = self.memory.get(address as usize) {
+                *b
+            } else {
+                address as u8
+            }
+        }
+
+        fn write_byte(&mut self, _address: u16, _value: u8) {}
+
+        fn tick_mcycle(&mut self) {
+            self.ticks += 1;
+        }
+    }
+
+    // Generated from https://gbdev.io/gb-opcodes/Opcodes.json
+    const UNPREFIXED_MCYCLES: [u8; 256] = [
+        1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1,
+        2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1,
+        1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 1, 2, 1, 1, 1, 3, 1, 3, 3, 2, 1, 1, 1,
+        3, 1, 3, 1, 2, 1, 1, 1, 3, 1, 3, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 1, 1, 2, 1,
+        2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 1, 1, 2, 1,
+    ];
+
+    // Generated from https://gbdev.io/gb-opcodes/Opcodes.json
+    const PREFIXED_MCYCLES: [u8; 256] = [
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    ];
+
+    #[test]
+    fn decode_cycles_unprefixed() {
+        for opcode in 0..=255 {
+            if opcode == 0xcb {
+                continue;
+            }
+
+            let mut decoder = super::Decoder::new(0);
+            let mut bus = TestBus::unprefixed(opcode);
+
+            _ = decoder.decode_instruction(&mut bus);
+
+            assert_eq!(
+                bus.ticks, UNPREFIXED_MCYCLES[opcode as usize],
+                "opcode = {opcode:#04x}"
+            );
+        }
+    }
+
+    // #[test]
+    fn decode_cycles_prefixed() {
+        for opcode in 0..=255 {
+            let mut decoder = super::Decoder::new(0);
+            let mut bus = TestBus::prefixed(opcode);
+
+            _ = decoder.decode_instruction(&mut bus);
+
+            assert_eq!(
+                bus.ticks, PREFIXED_MCYCLES[opcode as usize],
+                "opcode = {opcode:#04x}"
+            );
         }
     }
 }

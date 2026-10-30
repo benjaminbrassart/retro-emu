@@ -81,18 +81,6 @@ pub enum Address {
     HighC,
 }
 
-impl Address {
-    pub fn cycles(&self) -> u8 {
-        match self {
-            Self::Register(_) => 0,
-            Self::HL(_) => 0,
-            Self::Immediate(_) => 2,
-            Self::HighImmediate(_) => 1,
-            Self::HighC => 0,
-        }
-    }
-}
-
 impl std::fmt::Display for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
@@ -153,14 +141,6 @@ impl Operand8 {
             0b10 => Address::HL(HLMode::Increment).into(),
             0b11 => Address::HL(HLMode::Decrement).into(),
             _ => unreachable!(),
-        }
-    }
-
-    pub fn cycles(&self) -> u8 {
-        match self {
-            Self::Register(_) => 0,
-            Self::Immediate(_) => 1,
-            Self::Memory(address) => 1 + address.cycles(),
         }
     }
 }
