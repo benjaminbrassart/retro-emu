@@ -1,203 +1,62 @@
-pub enum IoRegister {
-    JOYP,
-    SB,
-    SC,
-    DIV,
-    TIMA,
-    TMA,
-    TAC,
-    IF,
-    NR10,
-    NR11,
-    NR12,
-    NR13,
-    NR14,
-    NR21,
-    NR22,
-    NR23,
-    NR24,
-    NR30,
-    NR31,
-    NR32,
-    NR33,
-    NR34,
-    NR41,
-    NR42,
-    NR43,
-    NR44,
-    NR50,
-    NR51,
-    NR52,
-    WaveRAM(u8),
-    LCDC,
-    STAT,
-    SCY,
-    SCX,
-    LY,
-    LYC,
-    DMA,
-    BGP,
-    OBP0,
-    OBP1,
-    WY,
-    WX,
-    KEY0,
-    KEY1,
-    VBK,
-    BANK,
-    HDMA1,
-    HDMA2,
-    HDMA3,
-    HDMA4,
-    HDMA5,
-    RP,
-    BCPS,
-    BCPD,
-    OCPS,
-    OCPD,
-    OPRI,
-    SVBK,
-    PCM12,
-    PCM34,
-}
+macro_rules! io_registers {
+    ($($name:ident = $offset:literal),* $(,)?) => {
+        pub enum IoRegister {
+            $($name,)*
+            WaveRAM(u8),
+        }
 
-impl std::fmt::Display for IoRegister {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Self::JOYP => write!(f, "JOYP"),
-            Self::SB => write!(f, "SB"),
-            Self::SC => write!(f, "SC"),
-            Self::DIV => write!(f, "DIV"),
-            Self::TIMA => write!(f, "TIMA"),
-            Self::TMA => write!(f, "TMA"),
-            Self::TAC => write!(f, "TAC"),
-            Self::IF => write!(f, "IF"),
-            Self::NR10 => write!(f, "NR10"),
-            Self::NR11 => write!(f, "NR11"),
-            Self::NR12 => write!(f, "NR12"),
-            Self::NR13 => write!(f, "NR13"),
-            Self::NR14 => write!(f, "NR14"),
-            Self::NR21 => write!(f, "NR21"),
-            Self::NR22 => write!(f, "NR22"),
-            Self::NR23 => write!(f, "NR23"),
-            Self::NR24 => write!(f, "NR24"),
-            Self::NR30 => write!(f, "NR30"),
-            Self::NR31 => write!(f, "NR31"),
-            Self::NR32 => write!(f, "NR32"),
-            Self::NR33 => write!(f, "NR33"),
-            Self::NR34 => write!(f, "NR34"),
-            Self::NR41 => write!(f, "NR41"),
-            Self::NR42 => write!(f, "NR42"),
-            Self::NR43 => write!(f, "NR43"),
-            Self::NR44 => write!(f, "NR44"),
-            Self::NR50 => write!(f, "NR50"),
-            Self::NR51 => write!(f, "NR51"),
-            Self::NR52 => write!(f, "NR52"),
-            Self::WaveRAM(index) => write!(f, "waveRAM[{index}]"),
-            Self::LCDC => write!(f, "LCDC"),
-            Self::STAT => write!(f, "STAT"),
-            Self::SCY => write!(f, "SCY"),
-            Self::SCX => write!(f, "SCX"),
-            Self::LY => write!(f, "LY"),
-            Self::LYC => write!(f, "LYC"),
-            Self::DMA => write!(f, "DMA"),
-            Self::BGP => write!(f, "BGP"),
-            Self::OBP0 => write!(f, "OBP0"),
-            Self::OBP1 => write!(f, "OBP1"),
-            Self::WY => write!(f, "WY"),
-            Self::WX => write!(f, "WX"),
-            Self::KEY0 => write!(f, "KEY0"),
-            Self::KEY1 => write!(f, "KEY1"),
-            Self::VBK => write!(f, "VBK"),
-            Self::BANK => write!(f, "BANK"),
-            Self::HDMA1 => write!(f, "HDMA1"),
-            Self::HDMA2 => write!(f, "HDMA2"),
-            Self::HDMA3 => write!(f, "HDMA3"),
-            Self::HDMA4 => write!(f, "HDMA4"),
-            Self::HDMA5 => write!(f, "HDMA5"),
-            Self::RP => write!(f, "RP"),
-            Self::BCPS => write!(f, "BCPS"),
-            Self::BCPD => write!(f, "BCPD"),
-            Self::OCPS => write!(f, "OCPS"),
-            Self::OCPD => write!(f, "OCPD"),
-            Self::OPRI => write!(f, "OPRI"),
-            Self::SVBK => write!(f, "SVBK"),
-            Self::PCM12 => write!(f, "PCM12"),
-            Self::PCM34 => write!(f, "PCM34"),
+        impl IoRegister {
+            pub fn as_address(self) -> u16 {
+                match self {
+                    $(Self::$name => 0xff00 + $offset,)*
+                    Self::WaveRAM(index) => 0xff30 + index as u16,
+                }
+            }
+        }
+
+        impl TryFrom<u8> for IoRegister {
+            type Error = ();
+
+            fn try_from(offset: u8) -> Result<Self, Self::Error> {
+                match offset {
+                    $($offset => Ok(Self::$name),)*
+                    0x30..=0x3f => Ok(Self::WaveRAM(offset - 0x30)),
+                    _ => Err(()),
+                }
+            }
+        }
+
+        impl std::fmt::Display for IoRegister {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                match self {
+                    $(Self::$name => f.write_str(stringify!($name)),)*
+                    Self::WaveRAM(index) => write!(f, "waveRAM[{index}]"),
+                }
+            }
         }
     }
 }
 
-impl TryFrom<u8> for IoRegister {
-    type Error = ();
+io_registers! {
+    JOYP = 0x00, SB = 0x01, SC = 0x02,
+    DIV = 0x04, TIMA = 0x05, TMA = 0x06, TAC = 0x07, IF = 0x0f,
 
-    fn try_from(b: u8) -> Result<Self, Self::Error> {
-        let reg = match b {
-            0x00 => Self::JOYP,
-            0x01 => Self::SB,
-            0x02 => Self::SC,
-            0x04 => Self::DIV,
-            0x05 => Self::TIMA,
-            0x06 => Self::TMA,
-            0x07 => Self::TAC,
-            0x0f => Self::IF,
-            0x10 => Self::NR10,
-            0x11 => Self::NR11,
-            0x12 => Self::NR12,
-            0x13 => Self::NR13,
-            0x14 => Self::NR14,
-            0x16 => Self::NR21,
-            0x17 => Self::NR22,
-            0x18 => Self::NR23,
-            0x19 => Self::NR24,
-            0x1a => Self::NR30,
-            0x1b => Self::NR31,
-            0x1c => Self::NR32,
-            0x1d => Self::NR33,
-            0x1e => Self::NR34,
-            0x20 => Self::NR41,
-            0x21 => Self::NR42,
-            0x22 => Self::NR43,
-            0x23 => Self::NR44,
-            0x24 => Self::NR50,
-            0x25 => Self::NR51,
-            0x26 => Self::NR52,
-            0x30..=0x3f => Self::WaveRAM(b - 0x30),
-            0x40 => Self::LCDC,
-            0x41 => Self::STAT,
-            0x42 => Self::SCY,
-            0x43 => Self::SCX,
-            0x44 => Self::LY,
-            0x45 => Self::LYC,
-            0x46 => Self::DMA,
-            0x47 => Self::BGP,
-            0x48 => Self::OBP0,
-            0x49 => Self::OBP1,
-            0x4a => Self::WY,
-            0x4b => Self::WX,
-            0x4c => Self::KEY0,
-            0x4d => Self::KEY1,
-            0x4f => Self::VBK,
-            0x50 => Self::BANK,
-            0x51 => Self::HDMA1,
-            0x52 => Self::HDMA2,
-            0x53 => Self::HDMA3,
-            0x54 => Self::HDMA4,
-            0x55 => Self::HDMA5,
-            0x56 => Self::RP,
-            0x68 => Self::BCPS,
-            0x69 => Self::BCPD,
-            0x6a => Self::OCPS,
-            0x6b => Self::OCPD,
-            0x6c => Self::OPRI,
-            0x70 => Self::SVBK,
-            0x76 => Self::PCM12,
-            0x77 => Self::PCM34,
-            _ => return Err(()),
-        };
+    NR10 = 0x10, NR11 = 0x11, NR12 = 0x12, NR13 = 0x13, NR14 = 0x14,
+    NR21 = 0x16, NR22 = 0x17, NR23 = 0x18, NR24 = 0x19,
+    NR30 = 0x1a, NR31 = 0x1b, NR32 = 0x1c, NR33 = 0x1d, NR34 = 0x1e,
+    NR41 = 0x20, NR42 = 0x21, NR43 = 0x22, NR44 = 0x23,
+    NR50 = 0x24, NR51 = 0x25, NR52 = 0x26,
 
-        Ok(reg)
-    }
+    LCDC = 0x40, STAT = 0x41, SCY = 0x42, SCX = 0x43,
+    LY = 0x44, LYC = 0x45, DMA = 0x46,
+    BGP = 0x47, OBP0 = 0x48, OBP1 = 0x49,
+    WY = 0x4a, WX = 0x4b,
+
+    KEY0 = 0x4c, KEY1 = 0x4d, VBK = 0x4f, BANK = 0x50,
+    HDMA1 = 0x51, HDMA2 = 0x52, HDMA3 = 0x53,
+    HDMA4 = 0x54, HDMA5 = 0x55, RP = 0x56,
+    BCPS = 0x68, BCPD = 0x69, OCPS = 0x6a, OCPD = 0x6b,
+    OPRI = 0x6c, SVBK = 0x70, PCM12 = 0x76, PCM34 = 0x77,
 }
 
 pub struct CpuRegisters {
