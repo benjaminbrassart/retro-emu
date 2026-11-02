@@ -48,7 +48,7 @@ impl From<std::io::Error> for LoadCartridgeError {
     }
 }
 
-pub trait CartridgeMapper {
+pub trait CartridgeMapper: Send {
     fn read_rom(&self, address: u16) -> u8;
 
     fn read_ram(&self, address: u16) -> u8;
