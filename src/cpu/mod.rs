@@ -1,4 +1,4 @@
-use crate::bus::{Bus, BusExt};
+use crate::bus::Bus;
 
 mod flags;
 pub use flags::*;

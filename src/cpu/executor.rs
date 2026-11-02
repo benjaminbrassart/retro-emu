@@ -176,11 +176,13 @@ impl Cpu {
             }
             Instruction::JumpAbsolute { address, condition } => {
                 if self.check_jump_condition(condition) {
+                    self.idle(bus);
                     self.jump_absolute(address);
                 }
             }
             Instruction::JumpRelative { offset, condition } => {
                 if self.check_jump_condition(condition) {
+                    self.idle(bus);
                     self.jump_relative(offset);
                 }
             }
@@ -599,14 +601,27 @@ impl Cpu {
         }
     }
 
-    pub fn fetch_byte<B>(&mut self, bus: &B, src: Operand8) -> u8
+    fn idle<B>(&mut self, bus: &mut B)
+    where
+        B: Bus,
+    {
+        bus.tick_mcycle();
+    }
+
+    pub fn fetch_byte<B>(&mut self, bus: &mut B, src: Operand8) -> u8
     where
         B: Bus,
     {
         match src {
             Operand8::Register(reg) => self.get_reg8(reg),
             Operand8::Immediate(b) => b,
-            Operand8::Memory(mem) => bus.read_byte(self.get_memory(mem)),
+            Operand8::Memory(mem) => {
+                let b = bus.read_byte(self.get_memory(mem));
+
+                bus.tick_mcycle();
+
+                b
+            }
         }
     }
 
@@ -620,19 +635,23 @@ impl Cpu {
             Operand8::Memory(mem) => {
                 let address = self.get_memory(mem);
 
-                bus.write_byte(address, value)
+                bus.write_byte(address, value);
+                bus.tick_mcycle();
             }
         }
     }
 
-    pub fn fetch_word<B>(&mut self, bus: &B, src: Operand16) -> u16
+    pub fn fetch_word<B>(&mut self, bus: &mut B, src: Operand16) -> u16
     where
         B: Bus,
     {
         match src {
             Operand16::Register(reg) => self.get_reg16(reg),
             Operand16::Immediate(w) => w,
-            Operand16::Absolute(address) => bus.read_word(address),
+            Operand16::Absolute(address) => u16::from_le_bytes([
+                self.fetch_byte(bus, Operand8::Memory(address.into())),
+                self.fetch_byte(bus, Operand8::Memory(address.wrapping_add(1).into())),
+            ]),
         }
     }
 
@@ -643,7 +662,134 @@ impl Cpu {
         match dst {
             Operand16::Register(reg) => self.set_reg16(reg, value),
             Operand16::Immediate(_) => unreachable!("writing to immediate value"),
-            Operand16::Absolute(address) => bus.write_word(address, value),
+            Operand16::Absolute(address) => {
+                let buf = value.to_le_bytes();
+
+                self.store_byte(bus, Operand8::Memory(address.into()), buf[0]);
+                self.store_byte(
+                    bus,
+                    Operand8::Memory(address.wrapping_add(1).into()),
+                    buf[1],
+                );
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::cpu::*;
+
+    struct TestBus {
+        pub ticks: u8,
+    }
+
+    impl Bus for TestBus {
+        fn read_byte(&self, address: u16) -> u8 {
+            address as u8
+        }
+
+        fn write_byte(&mut self, _address: u16, _value: u8) {}
+
+        fn tick_mcycle(&mut self) {
+            self.ticks += 1;
+        }
+    }
+
+    #[track_caller]
+    fn test_instruction(instruction: Instruction, f: u8, ticks: u8) {
+        let mut cpu = Cpu::default();
+        let mut bus = TestBus { ticks: 0 };
+
+        cpu.f = f;
+        cpu.handle_instruction(&mut bus, instruction);
+
+        assert_eq!(bus.ticks, ticks);
+    }
+
+    #[test]
+    fn nop() {
+        test_instruction(Instruction::Nop, 0, 0);
+    }
+
+    #[test]
+    fn jump_relative() {
+        test_instruction(
+            Instruction::JumpRelative {
+                offset: -1,
+                condition: None,
+            },
+            0,
+            1,
+        );
+
+        test_instruction(
+            Instruction::JumpRelative {
+                offset: -1,
+                condition: None,
+            },
+            0,
+            1,
+        );
+    }
+
+    #[test]
+    fn jump_absolute() {
+        // JP HL
+        test_instruction(Instruction::JumpHL, 0, 0);
+
+        // JP 0x4242
+        test_instruction(
+            Instruction::JumpAbsolute {
+                address: 0x4242,
+                condition: None,
+            },
+            0,
+            1,
+        );
+
+        // JP 0x4242, Z
+        // Z = 0
+        test_instruction(
+            Instruction::JumpAbsolute {
+                address: 0x4242,
+                condition: Some(JumpCondition::Z),
+            },
+            0,
+            0,
+        );
+
+        // JP 0x4242, Z
+        // Z = 1
+        test_instruction(
+            Instruction::JumpAbsolute {
+                address: 0x4242,
+                condition: Some(JumpCondition::Z),
+            },
+            CpuFlags::Z,
+            1,
+        );
+
+        // JP 0x4242, NZ
+        // Z = 0
+        test_instruction(
+            Instruction::JumpAbsolute {
+                address: 0x4242,
+                condition: Some(JumpCondition::NZ),
+            },
+            0,
+            1,
+        );
+
+        // JP 0x4242, NZ
+        // Z = 1
+        test_instruction(
+            Instruction::JumpAbsolute {
+                address: 0x4242,
+                condition: Some(JumpCondition::NZ),
+            },
+            CpuFlags::Z,
+            0,
+        );
     }
 }

@@ -7,10 +7,10 @@ pub struct CpuFlags {
 }
 
 impl CpuFlags {
-    const Z: u8 = 0b1000_0000;
-    const N: u8 = 0b0100_0000;
-    const H: u8 = 0b0010_0000;
-    const C: u8 = 0b0001_0000;
+    pub(crate) const Z: u8 = 0b1000_0000;
+    pub(crate) const N: u8 = 0b0100_0000;
+    pub(crate) const H: u8 = 0b0010_0000;
+    pub(crate) const C: u8 = 0b0001_0000;
 }
 
 impl From<u8> for CpuFlags {
