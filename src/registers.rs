@@ -59,7 +59,7 @@ io_registers! {
     OPRI = 0x6c, SVBK = 0x70, PCM12 = 0x76, PCM34 = 0x77,
 }
 
- struct CpuRegisters {
+// struct CpuRegisters {
 //     pub a: u8,
 //     pub f: u8,
 //     pub b: u8,
