@@ -3,16 +3,16 @@ use crate::cpu::*;
 
 pub struct Decoder {
     pc: u16,
-    rc: u16,
+    offset: u16,
 }
 
 impl Decoder {
     pub fn new(pc: u16) -> Self {
-        Self { pc, rc: 0 }
+        Self { pc, offset: 0 }
     }
 
     fn get_current_pc(&self) -> u16 {
-        self.pc.wrapping_add(self.rc)
+        self.pc.wrapping_add(self.offset)
     }
 
     fn fetch_byte<B>(&self, bus: &mut B, address: u16) -> u8
@@ -32,7 +32,7 @@ impl Decoder {
     {
         let b = self.fetch_byte(bus, self.get_current_pc());
 
-        self.rc = self.rc.wrapping_add(1);
+        self.offset = self.offset.wrapping_add(1);
 
         b
     }
@@ -286,7 +286,7 @@ impl Decoder {
             0xcb => self.decode_prefixed_instruction(bus),
         };
 
-        (instruction, self.rc)
+        (instruction, self.offset)
     }
 
     pub fn decode_prefixed_instruction<B>(&mut self, bus: &mut B) -> Instruction
