@@ -7,8 +7,6 @@ pub struct Emulator {
     mmu: Mmu,
 }
 
-pub trait Handle {}
-
 impl Emulator {
     pub fn new(cartridge: Box<dyn CartridgeMapper>) -> Self {
         Self {
@@ -17,12 +15,8 @@ impl Emulator {
         }
     }
 
-    pub fn run<H>(&mut self, handle: &mut H)
-    where
-        H: Handle,
+    pub fn run(&mut self)
     {
-        _ = handle;
-
         loop {
             self.cpu.handle_interrupts(&mut self.mmu);
 
