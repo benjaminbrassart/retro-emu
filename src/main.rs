@@ -1,9 +1,12 @@
 mod bus;
 mod cartridge;
+mod cpu;
 mod display;
+mod emulator;
+mod mmu;
 mod registers;
+
 use std::error::Error;
-use std::fs::File;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread;
@@ -16,8 +19,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     if args.len() < 1 || args.len() > 2 {
         return Err("wrong number of args".into());
     }
-    let rom_path = File::open(&args[0])?;
-    println!("{:?}", rom_path);
+
+    let cartridge = crate::cartridge::load_cartridge_path(&args[0])?;
+
     drop(args);
 
     let index: i32 = 10;
@@ -25,7 +29,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let pause = Arc::new(AtomicBool::new(false));
     let paused_emu = Arc::clone(&pause);
 
-    let emulator_thread = thread::spawn(move || {
+    thread::spawn(move || {
+        let mut emulator = crate::emulator::Emulator::new(cartridge);
+
+        emulator.run();
+    });
+
+    thread::spawn(move || {
         let mut count: i32 = 0;
         while count < index {
             if paused_emu.load(Ordering::Relaxed) {
@@ -40,7 +50,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             thread::sleep(Duration::from_millis(500));
         }
     });
+
     display::create_window(rx, pause);
-    emulator_thread.join().unwrap();
+
     Ok(())
 }
