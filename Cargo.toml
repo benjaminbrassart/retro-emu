@@ -2,6 +2,7 @@
 name = "retro-emu"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.97"
 
 [dependencies]
 sdl2 = { version = "0.38.0", features = ["ttf"] }

@@ -24,12 +24,12 @@ impl From<u8> for CpuFlags {
     }
 }
 
-impl Into<u8> for CpuFlags {
-    fn into(self) -> u8 {
-        let zero = if self.zero { Self::Z } else { 0 };
-        let sub = if self.sub { Self::N } else { 0 };
-        let half = if self.half { Self::H } else { 0 };
-        let carry = if self.carry { Self::C } else { 0 };
+impl From<CpuFlags> for u8 {
+    fn from(flags: CpuFlags) -> u8 {
+        let zero = if flags.zero { CpuFlags::Z } else { 0 };
+        let sub = if flags.sub { CpuFlags::N } else { 0 };
+        let half = if flags.half { CpuFlags::H } else { 0 };
+        let carry = if flags.carry { CpuFlags::C } else { 0 };
 
         zero | sub | half | carry
     }

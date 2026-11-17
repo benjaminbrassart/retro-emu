@@ -1,7 +1,66 @@
-use crate::bus::Bus;
+use super::cpu::bus::Bus;
+use super::mbc::CartridgeMapper;
 
-use crate::cartridge::CartridgeMapper;
-use crate::registers::IoRegister;
+macro_rules! io_registers {
+    ($($name:ident = $offset:literal),* $(,)?) => {
+        pub enum IoRegister {
+            $($name,)*
+            WaveRAM(u8),
+        }
+
+        impl IoRegister {
+            // pub fn as_address(&self) -> u16 {
+            //     match self {
+            //         $(Self::$name => 0xff00 + $offset,)*
+            //         Self::WaveRAM(index) => 0xff30 + *index as u16,
+            //     }
+            // }
+        }
+
+        impl TryFrom<u8> for IoRegister {
+            type Error = ();
+
+            fn try_from(offset: u8) -> Result<Self, Self::Error> {
+                match offset {
+                    $($offset => Ok(Self::$name),)*
+                    0x30..=0x3f => Ok(Self::WaveRAM(offset - 0x30)),
+                    _ => Err(()),
+                }
+            }
+        }
+
+        impl std::fmt::Display for IoRegister {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                match self {
+                    $(Self::$name => f.write_str(stringify!($name)),)*
+                    Self::WaveRAM(index) => write!(f, "waveRAM[{index}]"),
+                }
+            }
+        }
+    }
+}
+
+io_registers! {
+    Joyp = 0x00, Sb = 0x01, Sc = 0x02,
+    Div = 0x04, Tima = 0x05, Tma = 0x06, Tac = 0x07, If = 0x0f,
+
+    Nr10 = 0x10, Nr11 = 0x11, Nr12 = 0x12, Nr13 = 0x13, Nr14 = 0x14,
+    Nr21 = 0x16, Nr22 = 0x17, Nr23 = 0x18, Nr24 = 0x19,
+    Nr30 = 0x1a, Nr31 = 0x1b, Nr32 = 0x1c, Nr33 = 0x1d, Nr34 = 0x1e,
+    Nr41 = 0x20, Nr42 = 0x21, Nr43 = 0x22, Nr44 = 0x23,
+    Nr50 = 0x24, Nr51 = 0x25, Nr52 = 0x26,
+
+    Lcdc = 0x40, Stat = 0x41, Scy = 0x42, Scx = 0x43,
+    Ly = 0x44, Lyc = 0x45, Dma = 0x46,
+    Bgp = 0x47, Obp0 = 0x48, Obp1 = 0x49,
+    Wy = 0x4a, Wx = 0x4b,
+
+    Key0 = 0x4c, Key1 = 0x4d, Vbk = 0x4f, Bank = 0x50,
+    Hdma1 = 0x51, Hdma2 = 0x52, Hdma3 = 0x53,
+    Hdma4 = 0x54, Hdma5 = 0x55, Rp = 0x56,
+    Bcps = 0x68, Bcpd = 0x69, Ocps = 0x6a, Ocpd = 0x6b,
+    Opri = 0x6c, Svbk = 0x70, Pcm12 = 0x76, Pcm34 = 0x77,
+}
 
 pub struct Mmu {
     cartridge: Box<dyn CartridgeMapper>,
@@ -24,7 +83,7 @@ impl Mmu {
 
     fn read_io(&self, address: u8) -> u8 {
         match IoRegister::try_from(address) {
-            Ok(IoRegister::IF) => self.interrupt_flag,
+            Ok(IoRegister::If) => self.interrupt_flag,
             Ok(reg) => todo!("unhandled I/O register: {reg}"),
             Err(_) => panic!("unknown I/O register: {address:#04x}"),
         }
@@ -32,7 +91,7 @@ impl Mmu {
 
     fn write_io(&mut self, address: u8, value: u8) {
         match IoRegister::try_from(address) {
-            Ok(IoRegister::IF) => self.interrupt_flag = value,
+            Ok(IoRegister::If) => self.interrupt_flag = value,
             Ok(reg) => todo!("unhandled I/O register: {reg}"),
             Err(_) => panic!("unknown I/O register: {address:#04x}"),
         }

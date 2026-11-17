@@ -1,11 +1,5 @@
-mod bus;
-mod cartridge;
-mod cpu;
+mod backend;
 mod display;
-mod emulator;
-mod mmu;
-mod registers;
-
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
@@ -16,11 +10,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = std::env::args().skip(1).collect::<Box<[_]>>();
 
     // Check args
-    if args.len() < 1 || args.len() > 2 {
+    if args.is_empty() || args.len() > 2 {
         return Err("wrong number of args".into());
     }
 
-    let cartridge = crate::cartridge::load_cartridge_path(&args[0])?;
+    let cartridge = backend::mbc::load_cartridge_path(&args[0])?;
 
     drop(args);
 
@@ -30,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let paused_emu = Arc::clone(&pause);
 
     thread::spawn(move || {
-        let mut emulator = crate::emulator::Emulator::new(cartridge);
+        let mut emulator = backend::emulator::Emulator::new(cartridge);
 
         emulator.run();
     });

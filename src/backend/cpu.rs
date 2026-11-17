@@ -1,4 +1,4 @@
-use crate::bus::Bus;
+pub mod bus;
 
 mod flags;
 pub use flags::*;
@@ -15,6 +15,8 @@ use decoder::Decoder;
 mod arithmetic;
 
 mod executor;
+
+use bus::Bus;
 
 #[derive(Default)]
 pub struct Cpu {
@@ -113,5 +115,4 @@ impl Cpu {
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
 mod tests;

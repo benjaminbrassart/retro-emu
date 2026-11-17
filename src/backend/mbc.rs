@@ -1,3 +1,5 @@
+mod registers;
+
 #[derive(Debug)]
 pub enum LoadCartridgeError {
     Io { err: std::io::Error },

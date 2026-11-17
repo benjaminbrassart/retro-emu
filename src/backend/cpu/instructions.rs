@@ -1,4 +1,4 @@
-use crate::cpu::{JumpCondition, Operand16, Operand8, Reg16, Reg8};
+use super::{JumpCondition, Operand16, Operand8, Reg16, Reg8};
 
 #[derive(Debug, PartialEq)]
 pub enum Instruction {

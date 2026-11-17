@@ -1,5 +1,5 @@
-use crate::bus::Bus;
-use crate::cpu::*;
+use super::bus::Bus;
+use super::*;
 
 impl Cpu {
     pub fn get_flags(&self) -> CpuFlags {
@@ -521,7 +521,7 @@ impl Cpu {
             }
             Instruction::Swap { src } => {
                 let input = self.fetch_byte(bus, src);
-                let value = input << 4 | input >> 4;
+                let value = input.rotate_right(4);
 
                 self.store_byte(bus, src, value);
                 self.update_flags(|flags| {
@@ -678,7 +678,7 @@ impl Cpu {
 
 #[cfg(test)]
 mod tests {
-    use crate::cpu::*;
+    use super::*;
 
     struct TestBus {
         pub ticks: u8,

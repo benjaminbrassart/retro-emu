@@ -1,5 +1,5 @@
-use crate::bus::Bus;
-use crate::cpu::*;
+use super::bus::Bus;
+use super::*;
 
 pub struct Decoder {
     pc: u16,
@@ -337,7 +337,7 @@ mod tests {
         }
     }
 
-    impl crate::bus::Bus for TestBus {
+    impl super::bus::Bus for TestBus {
         fn read_byte(&self, address: u16) -> u8 {
             if let Some(b) = self.memory.get(address as usize) {
                 *b

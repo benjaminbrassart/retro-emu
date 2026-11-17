@@ -1,6 +1,6 @@
-use crate::cartridge::CartridgeMapper;
-use crate::cpu::Cpu;
-use crate::mmu::Mmu;
+use super::mbc::CartridgeMapper;
+use super::cpu::Cpu;
+use super::mmu::Mmu;
 
 pub struct Emulator {
     cpu: Cpu,
