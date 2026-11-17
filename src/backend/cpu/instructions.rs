@@ -6,9 +6,7 @@ pub enum Instruction {
     Illegal {
         opcode: u8,
     },
-    Stop {
-        code: u8,
-    },
+    Stop,
     Halt,
     EnableInterrupts,
     DisableInterrupts,
@@ -169,7 +167,7 @@ impl std::fmt::Display for Instruction {
 
             Self::Illegal { opcode } => write!(f, "ILLEGAL_{opcode:02X}"),
 
-            Self::Stop { code } => write!(f, "STOP {code:#04x}"),
+            Self::Stop => write!(f, "STOP"),
 
             Self::Halt => write!(f, "HALT"),
 

@@ -57,9 +57,7 @@ impl Decoder {
                 Instruction::Illegal { opcode }
             }
 
-            0x10 => Instruction::Stop {
-                code: self.fetch_next_byte(bus),
-            },
+            0x10 => Instruction::Stop,
 
             0x76 => Instruction::Halt,
             0xf3 => Instruction::DisableInterrupts,

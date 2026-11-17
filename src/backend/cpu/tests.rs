@@ -183,7 +183,7 @@ fn decode_halt() {
 
 #[test]
 fn decode_stop() {
-    assert_decode(vec![0x10, 0x42], Instruction::Stop { code: 0x42 }, 2);
+    assert_decode(vec![0x10, 0x42], Instruction::Stop, 1);
 }
 
 #[test]

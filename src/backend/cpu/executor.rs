@@ -552,7 +552,7 @@ impl Cpu {
 
                 self.store_byte(bus, src, value);
             }
-            Instruction::Stop { .. } => todo!("stop"),
+            Instruction::Stop => todo!("stop"),
             Instruction::Halt => todo!("halt"),
             Instruction::Daa => todo!("daa"),
         }
